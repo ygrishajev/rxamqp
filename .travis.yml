@@ -1,0 +1,16 @@
+dist: trusty
+sudo: false
+
+language: node_js
+node_js:
+  - "6"
+
+services:
+  - rabbitmq
+
+install:
+  - NODE_ENV=development npm i
+
+script:
+  - npm run lint
+  - npm test

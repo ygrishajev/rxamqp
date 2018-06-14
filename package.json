@@ -8,7 +8,7 @@
     "lint": "eslint src",
     "commit": "git-cz",
     "commitmsg": "conventional-changelog-lint -e",
-    "test": "jest --detectOpenHandles spec",
+    "test": "jest spec",
     "coverage": "jest --collectCoverageFrom=src/**.js --coverage spec"
   },
   "author": {
@@ -53,7 +53,8 @@
     "nodemon": "^1.14.12"
   },
   "pre-commit": [
-    "lint"
+    "lint",
+    "test"
   ],
   "config": {
     "commitizen": {
