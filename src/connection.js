@@ -1,11 +1,12 @@
 const amqp = require('amqplib')
 const { BehaviorSubject } = require('rxjs/BehaviorSubject')
+require('rxjs/add/operator/first')
+require('rxjs/add/operator/filter')
 
 const { formatMeta } = require('./logging')
 const { withDefault } = require('./helpers')
 
-// TODO: implement connection close
-const connect = (url, options) => startRxConnection(
+const connect = (url, options = {}) => startRxConnection(
   url,
   new BehaviorSubject(null),
   options
@@ -22,7 +23,7 @@ function startRxConnection(url, store, options) {
     setTimeout(() => startRxConnection(url, store, options), delay)
   }
 
-  Promise.resolve(amqp.connect(url))
+  store.awaitingConnection = Promise.resolve(amqp.connect(url)) // eslint-disable-line
     .then(connection => {
       connection.on('error', error => (logger || console)
         .warn(formatMeta(prefix, `Connection error: ${error.message}`)))
@@ -43,6 +44,21 @@ function startRxConnection(url, store, options) {
       }
       reconnect(5000)
     })
+
+  store.close = function cleanupAndClose() { // eslint-disable-line no-param-reassign
+    return this
+      .filter(connection => !!connection)
+      .first()
+      .toPromise()
+      .then(connection => {
+        connection.removeAllListeners()
+        this.awaitingConnection = null
+        this.next(null)
+
+        return connection.close()
+      })
+      .then(() => this.complete())
+  }
 
   return store
 }

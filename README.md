@@ -44,7 +44,7 @@ client.request('amq.topic', 'routing.key', { foo: 'bar' })
 
 `connect(url, options)`
 
-**returns** Rx.BehaviorSubject instance emitting amqp.connection or `null` in case of no connection/connection close
+**returns** rxConnection (see below)
 
 **Params**
 
@@ -57,6 +57,16 @@ import { connect } from 'rxamqp'
 
 const rxConnection = connect(url, options)
 ```
+
+`rxConnection` - patched Rx.BehaviorSubject instance emitting amqp.connection or `null` in case of no connection/connection close
+
+**Instance methods**
+
+`rxConnection.close()`
+
+**returns** Promise
+
+Closes amqplib connection, completes Rx.BehaviorSubject instance and cleans up
 
 ### RxChannel
 
@@ -118,7 +128,7 @@ method is curried by default
 *exchange* (string): amqp exchange
 *replyTo* (string): queue to receive a reply
 *routingKey* (string): amqp routingKey to publish to
-*message* (any): data to buplish
+*message* (any): data to publish
 
 method is curried by default
 
