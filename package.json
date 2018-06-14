@@ -1,0 +1,56 @@
+{
+  "name": "rxamqp",
+  "version": "0.0.1",
+  "description": "Library for easy amqplib configuration and usage",
+  "main": "./src/index.js",
+  "scripts": {
+    "start": "nodemon ./src/index.js",
+    "lint": "eslint src",
+    "commit": "git-cz",
+    "commitmsg": "conventional-changelog-lint -e"
+  },
+  "author": {
+    "name": "Yaroslav Grishajev",
+    "email": "ygrishajev@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ygrishajev/amqpRx"
+  },
+  "license": "Apache License 2.0",
+  "keywords": [
+    "rabbitmq",
+    "amqp",
+    "amqplib",
+    "router",
+    "client",
+    "jsonschema",
+    "validation",
+    "reactive"
+  ],
+  "dependencies": {
+    "amqplib": "^0.5.1",
+    "chalk": "^2.3.1",
+    "jsonschema": "^1.1.1",
+    "lodash.curry": "^4.1.1",
+    "rxjs": "^5.5.6",
+    "uuid": "^3.0.1"
+  },
+  "devDependencies": {
+    "commitizen": "^2.9.6",
+    "cz-conventional-changelog-lint": "^0.1.3",
+    "eslint": "^4.17.0",
+    "eslint-config-airbnb": "^16.1.0",
+    "eslint-plugin-import": "^2.8.0",
+    "husky": "^0.14.3",
+    "nodemon": "^1.14.12"
+  },
+  "pre-commit": [
+    "lint"
+  ],
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog-lint"
+    }
+  }
+}
