@@ -8,8 +8,7 @@
     "lint": "eslint src",
     "commit": "git-cz",
     "commitmsg": "conventional-changelog-lint -e",
-    "test": "jest spec",
-    "coverage": "jest --collectCoverageFrom=src/**.js --coverage spec"
+    "test": "jest --collectCoverageFrom=src/**.js --coverage spec"
   },
   "author": {
     "name": "Yaroslav Grishajev",
