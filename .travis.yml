@@ -13,6 +13,7 @@ install:
   - npm install -g codecov
 
 script:
+  - commitlint-travis
   - npm run lint
   - npm test
   - codecov -t $CODE_COV_TOKEN

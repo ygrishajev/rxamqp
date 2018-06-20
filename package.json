@@ -7,7 +7,7 @@
     "start": "nodemon ./src/index.js",
     "lint": "eslint src",
     "commit": "git-cz",
-    "commitmsg": "conventional-changelog-lint -e",
+    "commitmsg": "commitlint -E GIT_PARAMS",
     "test": "jest --collectCoverageFrom=src/**.js --coverage spec"
   },
   "author": {
@@ -41,6 +41,9 @@
     "uuid": "^3.0.1"
   },
   "devDependencies": {
+    "@commitlint/cli": "^7.0.0",
+    "@commitlint/config-conventional": "^7.0.1",
+    "@commitlint/travis-cli": "^7.0.0",
     "commitizen": "^2.9.6",
     "cz-conventional-changelog-lint": "^0.1.3",
     "eslint": "^4.17.0",
