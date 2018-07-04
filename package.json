@@ -1,6 +1,6 @@
 {
   "name": "rxamqp",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Library for easy amqplib configuration and usage",
   "main": "./src/index.js",
   "scripts": {
@@ -35,7 +35,6 @@
     "amqplib": "^0.5.1",
     "chalk": "^2.3.1",
     "jsonschema": "^1.1.1",
-    "lodash.curry": "^4.1.1",
     "rxjs": "^6.2.1",
     "rxjs-compat": "^6.2.1",
     "uuid": "^3.0.1"

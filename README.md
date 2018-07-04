@@ -12,7 +12,7 @@ npm i rxamqp -S
 * Client reconnection
 * Failed channel reopening
 * Routing and message validation via [jsonschema](https://github.com/tdegrunt/jsonschema)
-* Promise based querying interface that is curried by default
+* Promise based querying interface
 
 ## Usage
 
@@ -118,18 +118,14 @@ const client = ReactiveMQ.create({
 *routingKey* (string): amqp routingKey to publish to
 *message* (any): data to buplish
 
-method is curried by default
 
 `request(exchange, replyTo, routingKey, message)`
 
 **returns** Promise
 
 *exchange* (string): amqp exchange
-*replyTo* (string): queue to receive a reply
 *routingKey* (string): amqp routingKey to publish to
 *message* (any): data to publish
-
-method is curried by default
 
 `connectRouter(routerConfig)`
 

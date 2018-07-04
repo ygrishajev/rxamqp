@@ -1,6 +1,5 @@
 const { v4: uuid } = require('uuid')
 const { Subject } = require('rxjs/Subject')
-const curry = require('lodash.curry')
 require('rxjs/add/operator/first')
 require('rxjs/add/operator/partition')
 
@@ -47,13 +46,7 @@ class ReactiveMQ {
       this.connectRouter(options.routerConfig)
     }
 
-    this.curry()
     this.watchChannel()
-  }
-
-  curry() {
-    this.request = curry(this._request.bind(this)) // eslint-disable-line no-underscore-dangle
-    this.publish = curry(this._publish.bind(this)) // eslint-disable-line no-underscore-dangle
   }
 
   watchChannel() {
@@ -82,15 +75,16 @@ class ReactiveMQ {
     }
   }
 
-  _request(exchange, replyTo, routingKey, message) {
+  request(exchange, routingKey, message, options) {
     const correlationId = uuid()
+    const replyTo = `${routingKey}.replyTo.${this.appId}.${correlationId.slice(0, 8)}`
     this.requests.set(correlationId, new Subject())
 
     return this.channelAsPromised
       .then(channel => channel.assertQueue(replyTo, { exclusive: true })
         .then(() => this.assertConsume(channel, replyTo, this.resolveReply))
         .then(() => {
-          const pubOptions = Object.assign({}, this.pubOptions, { replyTo, correlationId })
+          const pubOptions = Object.assign({}, this.pubOptions, { replyTo, correlationId }, options)
           this.log(logging.formatOutgoingRequest(correlationId, routingKey, this.appId), message)
 
           return channel.publish(exchange, routingKey, toBuffer(message), pubOptions)
@@ -118,11 +112,16 @@ class ReactiveMQ {
     }
   }
 
-  _publish(exchange, routingKey, message) {
+  publish(exchange, routingKey, message, options) {
     return this.channelAsPromised
       .then(channel => {
         this.log(logging.formatEvent(routingKey, this.appId), message)
-        return channel.publish(exchange, routingKey, toBuffer(message), this.pubOptions)
+        return channel.publish(
+          exchange,
+          routingKey,
+          toBuffer(message),
+          Object.assign(this.pubOptions, options)
+        )
       })
   }
 

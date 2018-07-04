@@ -75,7 +75,7 @@ class Router {
     try {
       const request = this.getValidRequest(message, route)
 
-      return Promise.resolve(route.resolver(request, this.channel, requeue))
+      return Promise.resolve(route.resolver(request, message, this.channel, requeue))
         .then(response => this.replyWithData(message, response))
     } catch (error) {
       this.log(logging.formatSubscriptionError(message, error))
