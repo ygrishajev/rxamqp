@@ -33,6 +33,7 @@ class Router {
     this.routes = options.routes
     this.logger = withDefault(options.logger, console)
     this.connectionId = options.connectionId || options.channel.connectionId
+    this.handleError = withDefault(options.handleError, error => { throw error })
 
     this.watchChannel()
   }
@@ -76,14 +77,15 @@ class Router {
       const request = this.getValidRequest(message, route)
 
       return Promise.resolve(route.resolver(request, message, this.channel, requeue))
+        .catch(error => this.handleError(error))
         .then(response => this.replyWithData(message, response))
+        .catch(error => this.replyWithError({ message, error, requeue: requeueOnError }))
     } catch (error) {
-      this.log(logging.formatSubscriptionError(message, error))
-      return this.replyWithError({
-        message,
-        error: error.toString(),
-        requeue: requeueOnError
-      })
+      try {
+        return this.replyWithData(message, this.handleError(error))
+      } catch (handledError) {
+        return this.replyWithError({ message, error: handledError, requeue: requeueOnError })
+      }
     }
   }
 
@@ -106,7 +108,7 @@ class Router {
   }
 
   replyWithError({ message, error, requeue = false }) {
-    this.reply(message, { error })
+    this.reply(message, { error: error.message })
     this.channel.reject(message, requeue)
   }
 

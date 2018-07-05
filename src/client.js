@@ -103,10 +103,13 @@ class ReactiveMQ {
   resolveReply(message) {
     if (this.requests.has(message.properties.correlationId)) {
       const reply = JSON.parse(message.content.toString())
+      const request = this.requests.get(message.properties.correlationId)
 
-      this.requests
-        .get(message.properties.correlationId)
-        .next(reply)
+      if (reply.error) {
+        request.error(reply.error)
+      } else {
+        request.next(reply)
+      }
 
       this.log(logging.formatIncomingResponse(message, reply.error), reply)
     }
