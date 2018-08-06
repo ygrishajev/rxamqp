@@ -1,3 +1,4 @@
+const EventEmitter = require('events')
 const { v4: uuid } = require('uuid')
 const { yellow } = require('chalk')
 
@@ -35,6 +36,9 @@ class Router {
     this.connectionId = options.connectionId || options.channel.connectionId
     this.handleError = withDefault(options.handleError, error => { throw error })
 
+    this.pendingRequests = new Set()
+    this.events = new EventEmitter()
+
     this.watchChannel()
   }
 
@@ -65,8 +69,11 @@ class Router {
             this.logger.log(error)
           })
 
+        const consumerTag = `${this.appId}-${uuid.v4()}`
+        this.events.on('terminate', () => this.channel.cancel(consumerTag))
+
         return this.channel.consume(queue, routeMessage, Object.assign({
-          consumerTag: `${this.appId}-${uuid.v4()}`
+          consumerTag
         }, route.consumerOptions))
       })
       .catch(error => {
@@ -76,12 +83,14 @@ class Router {
   }
 
   route(message, route) {
+    this.addRequestId(message.properties.correlationId)
     // TODO: find out validation step errors cause UnhandledPromiseRejectionWarning
     return this.validateAndParse(message, route)
       .then(request => route.resolver(request, message, this.channel))
       .catch(error => this.handleError(error))
       .then(response => this.replyWithData(message, response))
       .catch(error => this.replyWithError(message, error))
+      .then(() => this.removeRequestId(message.properties.correlationId))
   }
 
   validateAndParse(message, { requestSchema } = {}) {
@@ -127,7 +136,7 @@ class Router {
       correlationId: message.properties.correlationId
     })
 
-    this.log(logging.formatOutgoingResponse(message, data.error))
+    this.log(logging.formatOutgoingResponse(message, data.error), data)
   }
 
   log(message, data) {
@@ -141,6 +150,33 @@ class Router {
     if (data) {
       this.logger.dir(data, { colors: true, depth: 10 })
     }
+  }
+
+  addRequestId(id) {
+    this.pendingRequests.add(id)
+    this.events.emit('request.start', id)
+  }
+
+  removeRequestId(id) {
+    this.pendingRequests.delete(id)
+    this.events.emit('request.end', id)
+  }
+
+  shutDown() {
+    this.events.emit('terminate')
+    this.log('Shutdown gracefully...')
+
+    if (!this.pendingRequests.size) {
+      return Promise.resolve(1)
+    }
+
+    return new Promise(resolve => {
+      this.events.on('request.end', () => {
+        if (!this.pendingRequests.size) {
+          resolve(1)
+        }
+      })
+    })
   }
 }
 
