@@ -8,7 +8,7 @@
     "lint": "eslint src",
     "commit": "git-cz",
     "commitmsg": "commitlint -E GIT_PARAMS",
-    "test": "jest --collectCoverageFrom=src/**.js --coverage spec"
+    "test": "jest --collectCoverageFrom=src/**.js --testEnvironment=node --coverage spec"
   },
   "author": {
     "name": "Yaroslav Grishajev",
