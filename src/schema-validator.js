@@ -1,18 +1,14 @@
 const { Validator } = require('jsonschema')
+const validateUUID = require('uuid-validate')
 
-const UUID_REG_EXP = /^[0-9A-F]{8}-[0-9A-F]{4}-4[0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i
-Validator.prototype.customFormats.uuid = input => !input || UUID_REG_EXP.test(input)
+Validator.prototype.customFormats.uuid = input => validateUUID(input, 4)
 
 const validator = new Validator()
 
-const validate = (input, schema, options) => {
-  const { errors } = validator.validate(input, schema, options)
+module.exports = (input, schema) => new Promise((resolve, reject) => {
+  const { errors } = validator.validate(input, schema)
 
-  if (errors.length) {
-    throw errors[0].message
-  }
-
-  return input
-}
-
-module.exports = validate
+  return errors && errors.length ?
+    reject(new Error(errors.map(({ stack }) => stack))) :
+    resolve(input)
+})

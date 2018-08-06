@@ -77,11 +77,15 @@ class ReactiveMQ {
 
   request(exchange, routingKey, message, options) {
     const correlationId = uuid()
-    const replyTo = `${routingKey}.replyTo.${this.appId}.${correlationId.slice(0, 8)}`
+    const replyTo = `${routingKey}.replyFor.${this.appId}`
     this.requests.set(correlationId, new Subject())
 
     return this.channelAsPromised
-      .then(channel => channel.assertQueue(replyTo, { exclusive: true })
+      .then(channel => channel.assertQueue(replyTo, {
+        exclusive: true,
+        autoDelete: true,
+        durable: false
+      })
         .then(() => this.assertConsume(channel, replyTo, this.resolveReply))
         .then(() => {
           const pubOptions = Object.assign({}, this.pubOptions, { replyTo, correlationId }, options)

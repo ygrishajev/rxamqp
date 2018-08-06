@@ -58,7 +58,14 @@ class Router {
       .then(() => this.channel.bindQueue(queue, route.exchange, route.routingKey))
       .then(() => {
         this.log(`Starts listening to '${yellow(queue)}'`)
-        return this.channel.consume(queue, message => this.route(message, route), Object.assign({
+
+        const routeMessage = message => this.route(message, route)
+          .catch(error => {
+            this.log(`Failed to process message '${queue}', on exchange '${route.exchange}', routing key '${route.routingKey}'`, message)
+            this.logger.log(error)
+          })
+
+        return this.channel.consume(queue, routeMessage, Object.assign({
           consumerTag: `${this.appId}-${uuid.v4()}`
         }, route.consumerOptions))
       })
@@ -69,64 +76,58 @@ class Router {
   }
 
   route(message, route) {
-    // TODO: think on better requeue logic (in case of replyWithData too)
-    let requeueOnError = false
-    const requeue = () => { requeueOnError = true }
-
-    try {
-      const request = this.getValidRequest(message, route)
-
-      return Promise.resolve(route.resolver(request, message, this.channel, requeue))
-        .catch(error => this.handleError(error))
-        .then(response => this.replyWithData(message, response))
-        .catch(error => this.replyWithError({ message, error, requeue: requeueOnError }))
-    } catch (error) {
-      try {
-        return this.replyWithData(message, this.handleError(error))
-      } catch (handledError) {
-        return this.replyWithError({ message, error: handledError, requeue: requeueOnError })
-      }
-    }
+    // TODO: find out validation step errors cause UnhandledPromiseRejectionWarning
+    return this.validateAndParse(message, route)
+      .then(request => route.resolver(request, message, this.channel))
+      .catch(error => this.handleError(error))
+      .then(response => this.replyWithData(message, response))
+      .catch(error => this.replyWithError(message, error))
   }
 
-  getValidRequest(message, route) {
-    validate(message.properties, messageSchema)
+  validateAndParse(message, { requestSchema } = {}) {
+    return validate(message.properties, messageSchema)
+      .then(() => {
+        let content
 
-    const request = JSON.parse(message.content.toString())
-    this.log(logging.formatIncomingMessage(message), request)
+        try {
+          content = JSON.parse((message.content).toString())
+        } catch (error) {
+          this.log(logging.formatIncomingMessage(message), {
+            error: 'Failed to parse'
+          })
 
-    if (route.requestSchema) {
-      validate(request, route.requestSchema)
-    }
+          throw error
+        }
 
-    return request
+        this.log(logging.formatIncomingMessage(message), content)
+
+        return requestSchema ?
+          validate(content, requestSchema) :
+          content
+      })
   }
 
   replyWithData(message, data) {
-    this.reply(message, { data })
     this.channel.ack(message)
+    this.reply(message, { data })
   }
 
-  replyWithError({ message, error, requeue = false }) {
+  replyWithError(message, error) {
+    this.channel.reject(message, false)
     this.reply(message, { error: error.message })
-    this.channel.reject(message, requeue)
   }
 
   reply(message, data) {
-    if (!message || !message.properties || !message.properties.replyTo) {
-      return
-    }
+    const buffer = Buffer.from(JSON.stringify(data, null, '\t'))
 
-    const bufferedMessage = Buffer.from(JSON.stringify(data, null, '\t'))
-
-    this.channel.sendToQueue(message.properties.replyTo, bufferedMessage, {
+    this.channel.sendToQueue(message.properties.replyTo, buffer, {
       appId: this.appId,
       contentEncoding: 'application/json',
       contentType: 'utf-8',
       correlationId: message.properties.correlationId
     })
 
-    this.log(logging.formatOutgoingResponse(message, data.error), data)
+    this.log(logging.formatOutgoingResponse(message, data.error))
   }
 
   log(message, data) {

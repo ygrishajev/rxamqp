@@ -1,6 +1,6 @@
 {
   "name": "rxamqp",
-  "version": "0.0.7",
+  "version": "0.0.9",
   "description": "Library for easy amqplib configuration and usage",
   "main": "./src/index.js",
   "scripts": {
@@ -37,7 +37,8 @@
     "jsonschema": "^1.1.1",
     "rxjs": "^6.2.1",
     "rxjs-compat": "^6.2.1",
-    "uuid": "^3.0.1"
+    "uuid": "^3.0.1",
+    "uuid-validate": "0.0.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^7.0.0",
