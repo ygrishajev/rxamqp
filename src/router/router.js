@@ -1,4 +1,5 @@
 const EventEmitter = require('events')
+const { performance } = require('perf_hooks')
 const { v4: uuid } = require('uuid')
 const { yellow } = require('chalk')
 
@@ -34,7 +35,9 @@ class Router {
     this.routes = options.routes
     this.logger = withDefault(options.logger, console)
     this.connectionId = options.connectionId || options.channel.connectionId
+    this.loggingPrefix = this.connectionId ? `Router:${this.connectionId}` : 'Router'
     this.handleError = withDefault(options.handleError, error => { throw error })
+    this.isDebugMode = !!options.debug
 
     this.pendingRequests = new Set()
     this.events = new EventEmitter()
@@ -63,11 +66,33 @@ class Router {
       .then(() => {
         this.log(`Starts listening to '${yellow(queue)}'`)
 
-        const routeMessage = message => this.route(message, route)
-          .catch(error => {
-            this.log(`Failed to process message '${queue}', on exchange '${route.exchange}', routing key '${route.routingKey}'`, message)
-            this.logger.log(error)
-          })
+        const routeMessage = message => {
+          let debugging
+          if (this.isDebugMode) {
+            debugging = { type: 'response', start: performance.now().toFixed(3) }
+          }
+
+          return this.route(message, route)
+            .then(result => {
+              if (this.isDebugMode) {
+                const end = performance.now().toFixed(3)
+                debugging.end = `${end} (+${(end - debugging.start).toFixed(3)})`
+                this.log(logging.formatDebugId(message), debugging)
+              }
+
+              return result
+            })
+            .catch(error => {
+              this.log(`Failed to process message '${queue}', on exchange '${route.exchange}', routing key '${route.routingKey}'`, message)
+              this.logger.log(error)
+
+              if (this.isDebugMode) {
+                const end = performance.now().toFixed(3)
+                debugging.end = `${end} (+${(end - debugging.start).toFixed(3)})`
+                this.log(logging.formatDebugId(message), debugging)
+              }
+            })
+        }
 
         const consumerTag = `${this.appId}-${uuid.v4()}`
         this.events.on('terminate', () => this.channel.cancel(consumerTag))
@@ -144,8 +169,7 @@ class Router {
       return
     }
 
-    const prefix = this.connectionId ? `Router:${this.connectionId}` : 'Router'
-    this.logger.log(logging.formatMeta(prefix, message))
+    this.logger.log(logging.formatMeta(this.loggingPrefix, message))
 
     if (data) {
       this.logger.dir(data, { colors: true, depth: 10 })

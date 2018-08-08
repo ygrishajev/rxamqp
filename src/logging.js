@@ -71,6 +71,15 @@ const formatMeta = (source, message) => {
   return `[${grey(time)}] [${source}] ${message}`
 }
 
+const formatDebugId = message => `${[
+  'Debugging info:',
+  (message.properties.correlationId && `request id: ${formatId(message)},`),
+  `routingKey: '${yellow(message.fields.routingKey)}',`,
+  `sender '${yellow(message.properties.appId)}'`
+]
+  .filter(part => !!part)
+  .join(' ')}`
+
 module.exports = {
   formatEvent,
   formatOutgoingRequest,
@@ -82,5 +91,6 @@ module.exports = {
   formatOutgoingResponse,
   formatIncomingError,
   formatIncomingResponse,
-  formatMeta
+  formatMeta,
+  formatDebugId
 }

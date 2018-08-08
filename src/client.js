@@ -1,5 +1,7 @@
+const { performance } = require('perf_hooks')
 const { v4: uuid } = require('uuid')
 const { Subject } = require('rxjs/Subject')
+const { yellow } = require('chalk')
 require('rxjs/add/operator/first')
 require('rxjs/add/operator/partition')
 
@@ -38,9 +40,12 @@ class ReactiveMQ {
     this.rxConnection = connect(options.url, this.commonOptions)
     this.rxChannel = openChannel(this.rxConnection, this.commonOptions)
 
-    this.replyQueues = new Set()
+    this.replyQueues = {}
     this.requests = new Map()
     this.pubOptions = Object.assign({}, PUB_OPTIONS, { appId: this.appId })
+    this.clientId = uuid()
+
+    this.isDebugMode = !!options.debug
 
     if (options.routerConfig) {
       this.connectRouter(options.routerConfig)
@@ -52,7 +57,11 @@ class ReactiveMQ {
   watchChannel() {
     this.rxChannel
       .filter(channel => !channel)
-      .subscribe(() => this.replyQueues.clear())
+      .subscribe(() => {
+        const restartKeys = Object.keys(this.replyQueues)
+        this.replyQueues = {}
+        restartKeys.forEach(key => this.assertReplyQueue(key))
+      })
   }
 
   connectRouter(routerConfig) {
@@ -75,10 +84,13 @@ class ReactiveMQ {
     }
   }
 
-  request(exchange, routingKey, message, options) {
-    const correlationId = uuid()
-    const replyTo = `${routingKey}.replyFor.${this.appId}`
-    this.requests.set(correlationId, new Subject())
+  assertReplyQueue(routingKey) {
+    if (this.replyQueues[routingKey]) {
+      return Promise.resolve(this.replyQueues[routingKey])
+    }
+
+    const replyTo = `${routingKey}.replyFor.${this.appId}.${this.clientId}`
+    this.replyQueues[routingKey] = replyTo
 
     return this.channelAsPromised
       .then(channel => channel.assertQueue(replyTo, {
@@ -86,22 +98,49 @@ class ReactiveMQ {
         autoDelete: true,
         durable: false
       })
-        .then(() => this.assertConsume(channel, replyTo, this.resolveReply))
-        .then(() => {
+        .then(() => channel.consume(replyTo, this.resolveReply.bind(this), { noAck: true })))
+      .then(() => {
+        this.log(`Queue '${yellow(replyTo)}' is listening for replies`)
+        return replyTo
+      })
+  }
+
+  request(exchange, routingKey, message, options) {
+    let debugging
+    if (this.isDebugMode) {
+      debugging = { type: 'request', start: performance.now().toFixed(3) }
+    }
+
+    const correlationId = uuid()
+    this.requests.set(correlationId, new Subject())
+
+    return this.channelAsPromised
+      .then(channel => this.assertReplyQueue(routingKey)
+        .then(replyTo => {
           const pubOptions = Object.assign({}, this.pubOptions, { replyTo, correlationId }, options)
+
+          if (this.isDebugMode) {
+            const request = performance.now().toFixed(3)
+            debugging.request = `${request} (+${(request - debugging.start).toFixed(3)})`
+          }
+
           this.log(logging.formatOutgoingRequest(correlationId, routingKey, this.appId), message)
 
           return channel.publish(exchange, routingKey, toBuffer(message), pubOptions)
         }))
-      .then(() => this.requests.get(correlationId).first().toPromise().then(({ data }) => data))
-  }
+      .then(() => this.requests.get(correlationId).first().toPromise().then(({ data }) => {
+        if (this.isDebugMode) {
+          const messageMock = {
+            properties: { correlationId, appId: this.appId },
+            fields: { routingKey }
+          }
+          const end = performance.now().toFixed(3)
+          debugging.end = `${end} (+${(end - debugging.start).toFixed(3)})`
+          this.log(logging.formatDebugId(messageMock), debugging)
+        }
 
-  assertConsume(channel, queue, handler) {
-    if (!this.replyQueues.has(queue)) {
-      this.replyQueues.add(queue)
-      return channel.consume(queue, handler.bind(this), { noAck: true })
-    }
-    return Promise.resolve(channel)
+        return data
+      }))
   }
 
   resolveReply(message) {
