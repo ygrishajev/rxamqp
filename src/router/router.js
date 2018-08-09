@@ -26,6 +26,13 @@ class Router {
     return new Router(...args)
   }
 
+  get channelAsPromised() {
+    return this.rxChannel
+      .filter(channel => channel)
+      .first()
+      .toPromise()
+  }
+
   constructor(options) {
     validateRouterOptions(options)
 
@@ -40,6 +47,7 @@ class Router {
 
     this.pendingRequests = new Set()
     this.events = new EventEmitter()
+    this.events.setMaxListeners(30)
 
     this.watchChannel()
   }
@@ -75,7 +83,7 @@ class Router {
             .then(result => {
               if (this.isDebugMode) {
                 const end = new Date().getTime()
-                debugging.end = `${end} (+${(end - debugging.start).toFixed(3)})`
+                debugging.end = `${end} (+${(end - debugging.start)})`
                 this.log(logging.formatDebugId(message), debugging)
               }
 
@@ -87,7 +95,7 @@ class Router {
 
               if (this.isDebugMode) {
                 const end = new Date().getTime()
-                debugging.end = `${end} (+${(end - debugging.start).toFixed(3)})`
+                debugging.end = `${end} (+${(end - debugging.start)})`
                 this.log(logging.formatDebugId(message), debugging)
               }
             })
@@ -107,11 +115,23 @@ class Router {
   }
 
   route(message, route) {
+    // TODO: allow clients to use nack or ack manually
     this.addRequestId(message.properties.correlationId)
-    // TODO: find out validation step errors cause UnhandledPromiseRejectionWarning
-    return this.validateAndParse(message, route)
+    const respond = this.validateAndParse(message, route)
       .then(request => route.resolver(request, message, this.channel))
       .catch(error => this.handleError(error))
+
+    if (!message.properties.correlationId) {
+      return respond
+        .then(() => this.channelAsPromised)
+        .then(channel => channel.ack())
+        .catch(error => {
+          this.log(logging.formatEvendHandlingError(message, error), error)
+          this.channelAsPromised.then(channel => channel.reject(message, false))
+        })
+    }
+
+    return respond
       .then(response => this.replyWithData(message, response))
       .catch(error => this.replyWithError(message, error))
       .then(() => this.removeRequestId(message.properties.correlationId))
@@ -126,7 +146,7 @@ class Router {
           content = JSON.parse((message.content).toString())
         } catch (error) {
           this.log(logging.formatIncomingMessage(message), {
-            error: 'Failed to parse'
+            content: { error: 'Failed to parse' }
           })
 
           throw error

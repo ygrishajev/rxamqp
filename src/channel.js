@@ -21,7 +21,11 @@ function startRxChannel(connection, store, options) {
 
   const log = message => logger && logger.log(formatMeta(prefix, message))
 
-  Promise.resolve(connection.createChannel())
+  const createChannel = options.confirmationMode ?
+    connection.createConfirmChannel() :
+    connection.createChannel()
+
+  Promise.resolve(createChannel)
     .then(channel => {
       channel.on('error', error => (logger || console)
         .log(`Channel error: ${error.message}`))
@@ -32,7 +36,7 @@ function startRxChannel(connection, store, options) {
         connection.close()
       })
 
-      log('Channel has been opened')
+      log(`${options.confirmationMode ? 'Confirm ' : ''}Channel has been opened`)
       Object.assign(channel, { connectionId })
       store.next(channel)
     })

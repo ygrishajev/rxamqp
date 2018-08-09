@@ -39,6 +39,12 @@ const formatOutgoingError = (message, error) => [
   `as response to '${red(message.properties.appId)}'`
 ].join(' ')
 
+const formatEvendHandlingError = (message, error) => [
+  `Error '${red(error.toString())}'`,
+  `is thrown '${red(message.properties.replyTo)}'`,
+  `while processing event '${red(message.properties.appId)}'`
+].join(' ')
+
 const formatSubscriptionError = (message, error) => [
   `Error '${red(error.toString())}'`,
   `on event '${yellow(message.fields.routingKey)}'`,
@@ -89,6 +95,7 @@ module.exports = {
   formatIncomingEvent,
   formatIncomingMessage,
   formatOutgoingError,
+  formatEvendHandlingError,
   formatSubscriptionError,
   formatOutgoingResponse,
   formatIncomingError,

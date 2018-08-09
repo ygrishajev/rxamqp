@@ -26,6 +26,13 @@ class ReactiveMQ {
       .toPromise()
   }
 
+  get confirmChannelAsPromised() {
+    return this.rxConfirmChannel
+      .filter(channel => channel)
+      .first()
+      .toPromise()
+  }
+
   get commonOptions() {
     return { logger: this.logger, connectionId: this.connectionId }
   }
@@ -38,7 +45,12 @@ class ReactiveMQ {
 
     this.rxConnection = connect(options.url, this.commonOptions)
     this.rxChannel = openChannel(this.rxConnection, this.commonOptions)
+    this.rxConfirmChannel = openChannel(
+      this.rxConnection,
+      Object.assign({ confirmationMode: true }, this.commonOptions)
+    )
 
+    this.requestTimeout = withDefault(options.requestTimeout, 5000)
     this.replyQueues = {}
     this.requests = new Map()
     this.pubOptions = Object.assign({}, PUB_OPTIONS, { appId: this.appId })
@@ -111,7 +123,7 @@ class ReactiveMQ {
     }
 
     const correlationId = uuid()
-    this.requests.set(correlationId, new Subject())
+    this.addRequest(correlationId)
 
     return this.channelAsPromised
       .then(channel => this.assertReplyQueue(routingKey)
@@ -120,26 +132,41 @@ class ReactiveMQ {
 
           if (this.isDebugMode) {
             const request = new Date().getTime()
-            debugging.request = `${request} (+${(request - debugging.start).toFixed(3)})`
+            debugging.request = `${request} (+${(request - debugging.start)})`
           }
 
           this.log(logging.formatOutgoingRequest(correlationId, routingKey, this.appId), message)
 
           return channel.publish(exchange, routingKey, toBuffer(message), pubOptions)
         }))
-      .then(() => this.requests.get(correlationId).first().toPromise().then(({ data }) => {
+      .then(() => this.requests.get(correlationId).first().toPromise())
+      .then(({ data }) => {
         if (this.isDebugMode) {
           const messageMock = {
             properties: { correlationId, appId: this.appId },
             fields: { routingKey }
           }
           const end = new Date().getTime()
-          debugging.end = `${end} (+${(end - debugging.start).toFixed(3)})`
+          debugging.end = `${end} (+${(end - debugging.start)})`
           this.log(logging.formatDebugId(messageMock), debugging)
         }
 
         return data
-      }))
+      })
+  }
+
+  addRequest(correlationId) {
+    const request = new Subject()
+    this.requests.set(correlationId, request)
+
+    const timer = setTimeout(() => request.error(new Error('Request timeout')), this.requestTimeout)
+
+    const complete = () => {
+      clearTimeout(timer)
+      this.requests.delete(correlationId)
+    }
+
+    request.subscribe(null, complete, complete)
   }
 
   resolveReply(message) {
@@ -151,6 +178,7 @@ class ReactiveMQ {
         request.error(reply.error)
       } else {
         request.next(reply)
+        request.complete()
       }
 
       this.log(logging.formatIncomingResponse(message, reply.error), reply)
@@ -158,15 +186,19 @@ class ReactiveMQ {
   }
 
   publish(exchange, routingKey, message, options) {
-    return this.channelAsPromised
+    return this.confirmChannelAsPromised
       .then(channel => {
         this.log(logging.formatEvent(routingKey, this.appId), message)
-        return channel.publish(
-          exchange,
-          routingKey,
-          toBuffer(message),
-          Object.assign(this.pubOptions, options)
-        )
+
+        return new Promise((resolve, reject) => {
+          channel.publish(
+            exchange,
+            routingKey,
+            toBuffer(message),
+            Object.assign(this.pubOptions, options),
+            error => (error ? reject(error) : resolve({ ok: true }))
+          )
+        })
       })
   }
 
