@@ -5,7 +5,9 @@ const {
   grey
 } = require('chalk')
 
-const formatId = message => `{${yellow(message.properties.correlationId.slice(0, 8))}}`
+const formatId = message => message.properties &&
+  message.properties.correlationId &&
+  `{${yellow(message.properties.correlationId.slice(0, 8))}}`
 
 const formatEvent = routingKey => `Event '${blue(routingKey)}' published`
 
@@ -73,7 +75,7 @@ const formatMeta = (source, message) => {
 
 const formatDebugId = message => `${[
   'Debugging info:',
-  (message.properties.correlationId && `request id: ${formatId(message)},`),
+  (message.properties && message.properties.correlationId && `request id: ${formatId(message)},`),
   `routingKey: '${yellow(message.fields.routingKey)}',`,
   `sender '${yellow(message.properties.appId)}'`
 ]

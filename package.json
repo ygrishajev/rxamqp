@@ -1,6 +1,6 @@
 {
   "name": "rxamqp",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "Library for easy amqplib configuration and usage",
   "main": "./src/index.js",
   "scripts": {

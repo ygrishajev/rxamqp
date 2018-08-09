@@ -1,4 +1,3 @@
-const { performance } = require('perf_hooks')
 const { v4: uuid } = require('uuid')
 const { Subject } = require('rxjs/Subject')
 const { yellow } = require('chalk')
@@ -108,7 +107,7 @@ class ReactiveMQ {
   request(exchange, routingKey, message, options) {
     let debugging
     if (this.isDebugMode) {
-      debugging = { type: 'request', start: performance.now().toFixed(3) }
+      debugging = { type: 'request', start: new Date().getTime() }
     }
 
     const correlationId = uuid()
@@ -120,7 +119,7 @@ class ReactiveMQ {
           const pubOptions = Object.assign({}, this.pubOptions, { replyTo, correlationId }, options)
 
           if (this.isDebugMode) {
-            const request = performance.now().toFixed(3)
+            const request = new Date().getTime()
             debugging.request = `${request} (+${(request - debugging.start).toFixed(3)})`
           }
 
@@ -134,7 +133,7 @@ class ReactiveMQ {
             properties: { correlationId, appId: this.appId },
             fields: { routingKey }
           }
-          const end = performance.now().toFixed(3)
+          const end = new Date().getTime()
           debugging.end = `${end} (+${(end - debugging.start).toFixed(3)})`
           this.log(logging.formatDebugId(messageMock), debugging)
         }

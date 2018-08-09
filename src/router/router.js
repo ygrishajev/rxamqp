@@ -1,5 +1,4 @@
 const EventEmitter = require('events')
-const { performance } = require('perf_hooks')
 const { v4: uuid } = require('uuid')
 const { yellow } = require('chalk')
 
@@ -69,13 +68,13 @@ class Router {
         const routeMessage = message => {
           let debugging
           if (this.isDebugMode) {
-            debugging = { type: 'response', start: performance.now().toFixed(3) }
+            debugging = { type: 'response', start: new Date().getTime() }
           }
 
           return this.route(message, route)
             .then(result => {
               if (this.isDebugMode) {
-                const end = performance.now().toFixed(3)
+                const end = new Date().getTime()
                 debugging.end = `${end} (+${(end - debugging.start).toFixed(3)})`
                 this.log(logging.formatDebugId(message), debugging)
               }
@@ -87,7 +86,7 @@ class Router {
               this.logger.log(error)
 
               if (this.isDebugMode) {
-                const end = performance.now().toFixed(3)
+                const end = new Date().getTime()
                 debugging.end = `${end} (+${(end - debugging.start).toFixed(3)})`
                 this.log(logging.formatDebugId(message), debugging)
               }
