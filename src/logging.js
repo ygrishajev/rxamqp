@@ -39,7 +39,7 @@ const formatOutgoingError = (message, error) => [
   `as response to '${red(message.properties.appId)}'`
 ].join(' ')
 
-const formatEvendHandlingError = (message, error) => [
+const formatEventHandlingError = (message, error) => [
   `Error '${red(error.toString())}'`,
   `is thrown '${red(message.properties.replyTo)}'`,
   `while processing event '${red(message.properties.appId)}'`
@@ -95,7 +95,7 @@ module.exports = {
   formatIncomingEvent,
   formatIncomingMessage,
   formatOutgoingError,
-  formatEvendHandlingError,
+  formatEventHandlingError,
   formatSubscriptionError,
   formatOutgoingResponse,
   formatIncomingError,

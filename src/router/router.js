@@ -124,9 +124,9 @@ class Router {
     if (!message.properties.correlationId) {
       return respond
         .then(() => this.channelAsPromised)
-        .then(channel => channel.ack())
+        .then(channel => channel.ack(message))
         .catch(error => {
-          this.log(logging.formatEvendHandlingError(message, error), error)
+          this.log(logging.formatEventHandlingError(message, error), error)
           this.channelAsPromised.then(channel => channel.reject(message, false))
         })
     }
