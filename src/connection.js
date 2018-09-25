@@ -3,8 +3,7 @@ const { BehaviorSubject } = require('rxjs/BehaviorSubject')
 require('rxjs/add/operator/first')
 require('rxjs/add/operator/filter')
 
-const { formatMeta } = require('./logging')
-const { withDefault } = require('./helpers')
+const { withDefault, createMeta, toPromise } = require('./helpers')
 
 const connect = (url, options = {}) => startRxConnection(
   url,
@@ -15,9 +14,10 @@ const connect = (url, options = {}) => startRxConnection(
 function startRxConnection(url, store, options) {
   const logger = withDefault(options.logger, console)
   const connectionId = options.connectionId || (options.url && options.url.vhost)
-  const prefix = connectionId ? `AMQP:${connectionId}` : 'AMQP'
+  const prefix = createMeta(connectionId ? `AMQP:${connectionId}` : 'AMQP')
 
-  const log = message => logger && logger.log(formatMeta(prefix, message))
+  const log = message => logger && logger.log(`${prefix} ${message}`)
+
   const reconnect = delay => {
     log(`Reconnecting in ${delay / 1000} seconds...`)
     setTimeout(() => startRxConnection(url, store, options), delay)
@@ -26,7 +26,7 @@ function startRxConnection(url, store, options) {
   store.awaitingConnection = Promise.resolve(amqp.connect(url)) // eslint-disable-line
     .then(connection => {
       connection.on('error', error => (logger || console)
-        .warn(formatMeta(prefix, `Connection error: ${error.message}`)))
+        .warn(`${prefix} Connection error: ${error.message}`))
 
       connection.on('close', () => {
         log('Connection was closed')
@@ -40,16 +40,13 @@ function startRxConnection(url, store, options) {
     })
     .catch(error => {
       if (logger) {
-        logger.warn(formatMeta(prefix, `Failed to connect: ${error.message}`))
+        logger.warn(`${prefix} Failed to connect: ${error.message}`)
       }
       reconnect(5000)
     })
 
   store.close = function cleanupAndClose() { // eslint-disable-line no-param-reassign
-    return this
-      .filter(connection => !!connection)
-      .first()
-      .toPromise()
+    return toPromise(this)
       .then(connection => {
         connection.removeAllListeners()
         this.awaitingConnection = null
@@ -57,7 +54,10 @@ function startRxConnection(url, store, options) {
 
         return connection.close()
       })
-      .then(() => this.complete())
+      .then(() => {
+        log('Connection was closed')
+        return this.complete()
+      })
   }
 
   return store
