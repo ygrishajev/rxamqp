@@ -18,7 +18,7 @@ module.exports = ctx => {
     const watcher = new Subject()
     requests.set(request.id, watcher)
 
-    const timer = setTimeout(() => watcher.error(new Error('Request timeout')), ctx.requestTimeout)
+    const timer = setTimeout(() => watcher.error(new Error(`Request <${request.shortId}> timeout `)), ctx.requestTimeout)
 
     const deregister = () => {
       clearTimeout(timer)
@@ -55,8 +55,7 @@ module.exports = ctx => {
     response.parse()
 
     const resolve = response.hasError ? 'error' : 'next'
-    const payload = response.payload.data || response.payload.error || response.payload
-    watcher[resolve](payload)
+    watcher[resolve](response.payload)
     watcher.complete()
 
     ctx.events.emit(`response.${response.hasError ? 'error' : 'success'}.received`, response)

@@ -13,8 +13,15 @@ const createClient = ctx => {
   const { use, listen, shutdown: shutdownSubscribers } = createSubscriber(ctx)
 
   const client = {
+    connection: ctx.connection,
+    channel: ctx.channel,
+    confirmChannel: ctx.confirmChannel,
+
     publish,
-    use,
+    use: (...args) => {
+      use(...args)
+      return client
+    },
     listen,
     events: ctx.events,
     shutdown: () => ctx.connection.close()

@@ -1,3 +1,4 @@
+const URL = require('url')
 const { grey } = require('chalk')
 
 const withDefault = (value, defaultValue) => {
@@ -17,7 +18,19 @@ const toPromise = behaviourSubject => behaviourSubject
   .first()
   .toPromise()
 
-const toVhost = url => url && url.vhost
+const toVhost = url => {
+  if (typeof url === 'string') {
+    const { pathname } = URL.parse(url)
+
+    return pathname || '/'
+  }
+
+  if (typeof url === 'object') {
+    return url.vhost
+  }
+
+  return ''
+}
 
 const toBuffer = obj => Buffer.from(JSON.stringify(obj, null, '\t'))
 

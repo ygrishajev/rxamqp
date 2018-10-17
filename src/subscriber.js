@@ -88,7 +88,7 @@ module.exports = ctx => {
   const shutdown = new Subject()
 
   const listen = () => {
-    let isDisconnected = false
+    let isDisconnected = true
 
     ctx.channel
       .takeUntil(shutdown)

@@ -3,7 +3,12 @@ const { BehaviorSubject } = require('rxjs/BehaviorSubject')
 require('rxjs/add/operator/first')
 require('rxjs/add/operator/filter')
 
-const { withDefault, createMeta, toPromise } = require('./helpers')
+const {
+  withDefault,
+  createMeta,
+  toPromise,
+  toVhost
+} = require('./helpers')
 
 const connect = (url, options = {}) => startRxConnection(
   url,
@@ -13,7 +18,7 @@ const connect = (url, options = {}) => startRxConnection(
 
 function startRxConnection(url, store, options) {
   const logger = withDefault(options.logger, console)
-  const connectionId = options.connectionId || (options.url && options.url.vhost)
+  const connectionId = options.connectionId || toVhost(url)
   const prefix = createMeta(connectionId ? `AMQP:${connectionId}` : 'AMQP')
 
   const log = message => logger && logger.log(`${prefix} ${message}`)
