@@ -10,7 +10,17 @@ const validateConfig = config => config
 
 const createClient = ctx => {
   const { publish, registry } = createPublisher(ctx)
-  const { use, listen, shutdown: shutdownSubscribers } = createSubscriber(ctx)
+  const {
+    request,
+    assertReplyQueue,
+    listen: startRequesterRoutines,
+    shutdown: shutdownRequester
+  } = createRequester(ctx)
+  const {
+    use,
+    listen: startSubscriberRoutines,
+    shutdown: shutdownSubscriber
+  } = createSubscriber(ctx)
 
   const client = {
     connection: ctx.connection,
@@ -22,17 +32,23 @@ const createClient = ctx => {
       use(...args)
       return client
     },
-    listen,
+    listen: () => {
+      startRequesterRoutines()
+      startSubscriberRoutines()
+    },
+    request,
+    assertReplyQueue,
     events: ctx.events,
     shutdown: () => ctx.connection.close()
       .then(() => {
-        shutdownSubscribers()
+        shutdownSubscriber()
+        shutdownRequester()
 
         return { pubRegistry: registry }
       })
   }
 
-  return Object.assign(client, createRequester(ctx))
+  return client
 }
 
 module.exports = flow([

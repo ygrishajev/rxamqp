@@ -1,4 +1,5 @@
 const { Subject } = require('rxjs')
+const { v4: uuid } = require('uuid')
 
 const { toPromise } = require('./helpers')
 const extend = require('./incoming-message')
@@ -11,8 +12,10 @@ const REPLY_QUEUE_OPTIONS = {
 }
 
 module.exports = ctx => {
-  const replyQueues = {}
   const requests = new Map()
+  const replyKeys = new Set()
+  let replyQueues = {}
+  let channelId = uuid()
 
   function register(request) {
     const watcher = new Subject()
@@ -35,8 +38,9 @@ module.exports = ctx => {
       return Promise.resolve(replyQueues[routingKey])
     }
 
-    const replyTo = `${routingKey}.replyFor.${ctx.appId}.${ctx.clientId}`
+    const replyTo = `${routingKey}.replyFor.${ctx.appId}.${channelId}`
     replyQueues[routingKey] = replyTo
+    replyKeys.add(routingKey)
 
     return ctx.channel.assertQueue(replyTo, REPLY_QUEUE_OPTIONS)
       .then(() => ctx.channel.consume(replyTo, resolveReply, { noAck: true }))
@@ -61,6 +65,21 @@ module.exports = ctx => {
     ctx.events.emit(`response.${response.hasError ? 'error' : 'success'}.received`, response)
   }
 
+  const shutdown = new Subject()
+
+  const listen = () => {
+    ctx.channel
+      .takeUntil(shutdown)
+      .subscribe(channel => {
+        if (!channel) {
+          channelId = uuid()
+          replyQueues = {}
+        } else {
+          replyKeys.forEach(key => assertReplyQueue(key))
+        }
+      })
+  }
+
   return {
     request: (exchange, routingKey, message, clientOptions) => {
       const request = toOutgoing({
@@ -81,6 +100,11 @@ module.exports = ctx => {
     },
     assertReplyQueue: keys => (Array.isArray(keys) ?
       Promise.all(keys.map(assertReplyQueue)) :
-      assertReplyQueue(keys))
+      assertReplyQueue(keys)),
+    listen,
+    shutdown: () => {
+      shutdown.next(true)
+      shutdown.complete()
+    }
   }
 }

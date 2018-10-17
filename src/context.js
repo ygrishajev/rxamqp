@@ -1,5 +1,4 @@
 const EventEmitter = require('events')
-const { v4: uuid } = require('uuid')
 
 const connect = require('./connection')
 const openChannel = require('./channel')
@@ -13,7 +12,6 @@ const PUB_OPTIONS = { contentEncoding: 'utf-8', contentType: 'application/json' 
 module.exports = (extend = {}) => {
   const config = {
     appId: withDefault(extend.appId, 'amqp-client'),
-    clientId: uuid(),
     pubs: new Map(),
     events: new EventEmitter(),
     requestTimeout: withDefault(extend.requestTimeout, 5000)
