@@ -9,45 +9,45 @@ const REPLY_OPTIONS = {
   contentType: 'utf-8'
 }
 
-module.exports = ctx => {
-  const sendToQueue = (payload, message) => ctx.channel
+module.exports = context => {
+  const sendToQueue = (payload, message) => context.channel
     .sendToQueue(message.replyTo, toBuffer(payload), Object.assign({
-      appId: ctx.appId,
+      appId: context.appId,
       correlationId: message.id
     }, REPLY_OPTIONS))
 
   const respond = (payload, message) => {
-    ctx.events.emit('response.success.sent', { message, payload })
-    ctx.channel.ack(message)
+    context.events.emit('response.success.sent', { message, payload })
+    context.channel.ack(message)
 
     return sendToQueue(payload, message)
   }
 
   const reject = (payload, message) => {
-    ctx.events.emit('response.error.sent', { message, payload })
-    ctx.channel.reject(message, false)
+    context.events.emit('response.error.sent', { message, payload })
+    context.channel.reject(message, false)
 
     return sendToQueue(payload, message)
   }
 
   const createContext = message => ({
     message,
-    channel: ctx.channel,
+    channel: context.channel,
     respond: payload => message.replyTo && respond({ data: payload }, message),
     rejectAndRespond: payload => message.replyTo && reject({ error: payload }, message),
     ack: () => {
-      ctx.events.emit('event.ack', message)
-      ctx.channel.ack(message)
+      context.events.emit('event.ack', message)
+      context.channel.ack(message)
     },
     reject: (requeue = false) => {
-      ctx.events.emit('event.nack', message)
-      ctx.channel.reject(message, requeue)
+      context.events.emit('event.nack', message)
+      context.channel.reject(message, requeue)
     }
   })
 
   const prepareOrReject = message => {
     const incoming = extend(message)
-    const emit = () => ctx.events.emit(`${incoming.replyTo ? 'request' : 'event'}.received`, incoming)
+    const emit = () => context.events.emit(`${incoming.replyTo ? 'request' : 'event'}.received`, incoming)
 
     try {
       incoming.parse()
@@ -60,26 +60,49 @@ module.exports = ctx => {
     return incoming
   }
 
+  const defaultErrorHandler = error => {
+    if (error) {
+      console.warn('Error: unhandled error passed to \'next\'') // eslint-disable-line no-console
+      console.warn(error) // eslint-disable-line no-console
+    }
+  }
+  let errorHandler = error => defaultErrorHandler(error)
   const uses = []
+  const common = []
 
-  // TODO: implement global middlewares and error handlers
+  // TODO: implement global middlewares
   // TODO: ensure proper handling of multiple message ack error to avoid reconnection
-  const use = (params, ...middlewares) => {
+  const use = (...args) => {
+    if (typeof args[0] === 'function') {
+      args.forEach(middleware => {
+        if (middleware.length === 4) {
+          errorHandler = middleware
+        } else {
+          common.push(middleware)
+        }
+      })
+      return
+    }
+
+    const [params, ...middlewares] = args
+
     const consume = message => {
       const handlerContext = createContext(prepareOrReject(message))
-      const pipeline = middlewares.reduceRight(
-        (next, current) => () => current(handlerContext.message.payload, handlerContext, next),
+      const pipeline = middlewares.concat(common).reduceRight(
+        (next, current) => error => (error
+          ? errorHandler(error, handlerContext.message.payload, handlerContext, defaultErrorHandler)
+          : current(handlerContext.message.payload, handlerContext, next)),
         () => {}
       )
 
       return pipeline()
     }
 
-    const queue = `${ctx.appId}.${params.routingKey}`
+    const queue = `${context.appId}.${params.routingKey}`
 
     const doUse = channel => channel.assertQueue(queue, params.queue)
       .then(() => channel.bindQueue(queue, params.exchange, params.routingKey))
-      .then(() => ctx.events.emit('requestQueue.configured', queue))
+      .then(() => context.events.emit('requestQueue.configured', queue))
       .then(() => channel.consume(queue, consume, params.consumer))
 
     uses.push(doUse)
@@ -90,7 +113,7 @@ module.exports = ctx => {
   const listen = () => {
     let isDisconnected = true
 
-    ctx.channel
+    context.channel
       .takeUntil(shutdown)
       .subscribe(channel => {
         if (channel && typeof use === 'function' && isDisconnected) {
