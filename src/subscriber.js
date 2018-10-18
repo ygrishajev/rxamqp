@@ -70,6 +70,15 @@ module.exports = context => {
   const uses = []
   const common = []
 
+  const wrap = middleware => (...args) => {
+    try {
+      return middleware(...args)
+    } catch (error) {
+      const [payload, ctx] = args
+      return errorHandler(error, payload, ctx, defaultErrorHandler)
+    }
+  }
+
   // TODO: implement global middlewares
   // TODO: ensure proper handling of multiple message ack error to avoid reconnection
   const use = (...args) => {
@@ -91,7 +100,7 @@ module.exports = context => {
       const pipeline = middlewares.concat(common).reduceRight(
         (next, current) => error => (error
           ? errorHandler(error, handlerContext.message.payload, handlerContext, defaultErrorHandler)
-          : current(handlerContext.message.payload, handlerContext, next)),
+          : wrap(current)(handlerContext.message.payload, handlerContext, next)),
         () => {}
       )
 
