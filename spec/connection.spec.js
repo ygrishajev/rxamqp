@@ -16,7 +16,7 @@ describe('rxConnection', () => {
     return rxConnection.close()
   })
 
-  test('emits amqplib ChannelModel on connect', () => {
+  test('emits ChannelModel on connect', () => {
     const rxConnection = createConnection()
     expect.assertions(1)
 
@@ -33,34 +33,34 @@ describe('rxConnection', () => {
     expect.assertions(1)
 
     const connected = rxConnection.skip(1)
-    const disconnected = connected.skip(1)
 
     connected.first().subscribe(connection => connection.close())
 
-    return disconnected
+    return connected
+      .skip(1)
       .first()
       .toPromise()
       .then(value => expect(value).toBeNull())
       .then(() => rxConnection.close())
   })
 
-  test('emits amqplib ChannelModel on reconnect', () => {
+  test('emits ChannelModel on reconnect', () => {
     const rxConnection = createConnection()
     expect.assertions(1)
 
     const connected = rxConnection.skip(1)
-    const reconnected = connected.skip(2)
 
     connected.first().subscribe(connection => connection.close())
 
-    return reconnected
+    return connected
+      .skip(2)
       .first()
       .toPromise()
       .then(connection => expect(connection).toBeInstanceOf(ChannelModel))
       .then(() => rxConnection.close())
   })
 
-  test('#close closes connection and cleans up', () => {
+  test('close closes connection and cleans up', () => {
     const rxConnection = createConnection()
     expect.assertions(3)
 

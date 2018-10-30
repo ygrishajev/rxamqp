@@ -7,7 +7,7 @@
     "start": "nodemon ./src/index.js",
     "lint": "eslint src",
     "commitmsg": "commitlint -E GIT_PARAMS",
-    "test": "jest --collectCoverageFrom=src/**.js --testEnvironment=node --coverage spec"
+    "test": "jest --coverage --runInBand spec"
   },
   "author": {
     "name": "Yaroslav Grishajev",

@@ -1,4 +1,4 @@
-const { IllegalOperationError } = require('amqplib')
+const { IllegalOperationError } = require('amqplib/lib/error')
 const { BehaviorSubject } = require('rxjs/BehaviorSubject')
 require('rxjs/add/operator/filter')
 
@@ -60,7 +60,10 @@ function startRxChannel(connection, store, options) {
       if (logger) {
         logger.warn(`${prefix} Failed to create channel: ${error.message}`)
       }
-      connection.close()
+
+      if (error.message !== 'Connection closing') {
+        connection.close()
+      }
     })
 
   return store
