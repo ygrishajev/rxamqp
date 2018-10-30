@@ -60,7 +60,7 @@ describe('rxConnection', () => {
       .then(() => rxConnection.close())
   })
 
-  test('close closes connection and cleans up', () => {
+  test('#close closes connection and cleans up', () => {
     const rxConnection = createConnection()
     expect.assertions(3)
 

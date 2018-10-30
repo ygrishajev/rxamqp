@@ -1,3 +1,6 @@
+require('rxjs/add/operator/filter')
+require('rxjs/add/operator/first')
+
 const URL = require('url')
 const { grey } = require('chalk')
 
@@ -34,7 +37,7 @@ const toVhost = url => {
 
 const toBuffer = obj => Buffer.from(JSON.stringify(obj, null, '\t'))
 
-const createMeta = source => `[${grey(new Date().toTimeString().split(' ')[0])}] [${source}]`
+const createMeta = source => `[${grey(new Date(0).toTimeString().split(' ')[0])}] [${source}]`
 
 module.exports = {
   withDefault,
