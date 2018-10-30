@@ -1,60 +1,59 @@
 const connect = require('../src/connection')
 const { BehaviorSubject } = require('rxjs/BehaviorSubject')
-const { Subject } = require('rxjs/Subject')
 const { ChannelModel } = require('amqplib/lib/channel_model')
 require('rxjs/add/operator/skip')
+require('rxjs/add/operator/take')
 require('rxjs/add/operator/partition')
 require('rxjs/add/operator/last')
 
-const { tickReconnection } = require('./helpers')
-
-const getConnection = () => connect('amqp://localhost:5672', { logger: false })
+const createConnection = () => connect('amqp://localhost:5672', { logger: false })
 
 describe('rxConnection', () => {
   test('is an instance of BehaviourSubject', () => {
-    const rxConnection = getConnection()
+    const rxConnection = createConnection()
     expect(rxConnection).toBeInstanceOf(BehaviorSubject)
 
     return rxConnection.close()
   })
 
   test('emits amqplib ChannelModel on connect', () => {
-    const rxConnection = getConnection()
+    const rxConnection = createConnection()
     expect.assertions(1)
 
     return rxConnection
-      .filter(connection => !!connection)
+      .filter(value => !!value)
       .first()
       .toPromise()
-      .then(connection => {
-        expect(connection).toBeInstanceOf(ChannelModel)
-
-        return rxConnection.close()
-      })
+      .then(connection => expect(connection).toBeInstanceOf(ChannelModel))
+      .then(() => rxConnection.close())
   })
 
   test('emits null on connection close', () => {
-    const rxConnection = getConnection()
+    const rxConnection = createConnection()
     expect.assertions(1)
 
-    const watchDisconnected = new Subject()
-    tickReconnection({ rxConnection, watcher: watchDisconnected, tickOnConnected: false })
+    const connected = rxConnection.skip(1)
+    const disconnected = connected.skip(1)
 
-    return watchDisconnected
+    connected.first().subscribe(connection => connection.close())
+
+    return disconnected
       .first()
       .toPromise()
-      .then(connection => expect(connection).toBeNull())
+      .then(value => expect(value).toBeNull())
       .then(() => rxConnection.close())
   })
 
   test('emits amqplib ChannelModel on reconnect', () => {
-    const rxConnection = getConnection()
+    const rxConnection = createConnection()
     expect.assertions(1)
 
-    const watchConnected = new Subject()
-    tickReconnection({ rxConnection, watcher: watchConnected, tickOnConnected: true })
+    const connected = rxConnection.skip(1)
+    const reconnected = connected.skip(2)
 
-    return watchConnected
+    connected.first().subscribe(connection => connection.close())
+
+    return reconnected
       .first()
       .toPromise()
       .then(connection => expect(connection).toBeInstanceOf(ChannelModel))
@@ -62,7 +61,7 @@ describe('rxConnection', () => {
   })
 
   test('#close closes connection and cleans up', () => {
-    const rxConnection = getConnection()
+    const rxConnection = createConnection()
     expect.assertions(3)
 
     return rxConnection.close()
