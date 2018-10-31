@@ -6,7 +6,6 @@
   "scripts": {
     "start": "nodemon ./src/index.js",
     "lint": "eslint src",
-    "commitmsg": "commitlint -E GIT_PARAMS",
     "test": "jest --coverage --runInBand spec"
   },
   "author": {
@@ -46,6 +45,13 @@
     "eslint-plugin-jest": "^21.17.0",
     "husky": "^0.14.3",
     "jest": "^23.1.0",
-    "nodemon": "^1.14.12"
+    "nodemon": "^1.14.12",
+    "uuid-validate": "0.0.3"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint && npm test",
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
   }
 }

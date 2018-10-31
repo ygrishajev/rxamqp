@@ -42,4 +42,4 @@ class IncomingMessage {
   }
 }
 
-module.exports = message => new IncomingMessage(message)
+module.exports = { IncomingMessage }

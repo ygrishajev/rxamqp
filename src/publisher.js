@@ -1,10 +1,10 @@
-const extend = require('./outgoing-message')
+const { OutgoingMessage } = require('./outgoing-message')
 
 module.exports = ctx => {
   const registry = new Map()
 
   const publish = (exchange, routingKey, message, clientOptions) => {
-    const event = extend({
+    const event = new OutgoingMessage({
       exchange,
       routingKey,
       message,

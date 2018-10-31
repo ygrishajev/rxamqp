@@ -2,7 +2,7 @@ const { Subject } = require('rxjs')
 require('rxjs/add/operator/takeUntil')
 
 const { toBuffer } = require('./helpers')
-const extend = require('./incoming-message')
+const { IncomingMessage } = require('./incoming-message')
 
 const REPLY_OPTIONS = {
   contentEncoding: 'application/json',
@@ -46,7 +46,7 @@ module.exports = context => {
   })
 
   const prepareOrReject = message => {
-    const incoming = extend(message)
+    const incoming = new IncomingMessage(message)
     const emit = () => context.events.emit(`${incoming.replyTo ? 'request' : 'event'}.received`, incoming)
 
     try {

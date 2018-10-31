@@ -2,8 +2,8 @@ const { Subject } = require('rxjs')
 const { v4: uuid } = require('uuid')
 
 const { toPromise } = require('./helpers')
-const extend = require('./incoming-message')
-const toOutgoing = require('./outgoing-message')
+const { IncomingMessage } = require('./incoming-message')
+const { OutgoingMessage } = require('./outgoing-message')
 
 const REPLY_QUEUE_OPTIONS = {
   exclusive: true,
@@ -51,8 +51,7 @@ module.exports = ctx => {
   }
 
   function resolveReply(message) {
-    const response = extend(message)
-
+    const response = new IncomingMessage(message)
     if (!requests.has(response.id)) { return }
 
     const watcher = requests.get(response.id)
@@ -82,7 +81,7 @@ module.exports = ctx => {
 
   return {
     request: (exchange, routingKey, message, clientOptions) => {
-      const request = toOutgoing({
+      const request = new OutgoingMessage({
         exchange,
         routingKey,
         message,
@@ -92,7 +91,7 @@ module.exports = ctx => {
 
       return assertReplyQueue(routingKey)
         .then(replyTo => {
-          request.options.replyTo = replyTo
+          request.replyTo = replyTo
           return ctx.channel.publish(...request.toArgs({ withExchange: true }))
         })
         .then(() => ctx.events.emit('request.sent', request))

@@ -38,7 +38,7 @@ const formats = {
   'request.sent': request => format([
     blue(`↑ REQUEST<${request.shortId}>`),
     `for '${blue(request.routingKey)}'`,
-    `sent by '${blue(request.options.appId)}'`
+    `sent by '${blue(request.appId)}'`
   ], request.message),
   'request.received': request => format([
     blue(`↓ REQUEST<${request.shortId}>`),

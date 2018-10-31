@@ -1,25 +1,45 @@
 const { v4: uuid } = require('uuid')
 const { toBuffer } = require('./helpers')
 
-module.exports = payload => {
-  const id = uuid()
-  const message = Object.assign({ id }, payload)
-  message.options.correlationId = id
+class OutgoingMessage {
+  get id() {
+    return this.payload.options
+      && this.payload.options.correlationId
+  }
 
-  Object.assign(message, {
-    get shortId() {
-      return id.slice(0, 8)
-    },
-    get hasError() {
-      return !!payload.message.error
-    },
-    toArgs: () => [
-      message.exchange,
-      message.routingKey,
-      toBuffer(message.message),
-      message.options
+  get shortId() {
+    return this.id.slice(0, 8)
+  }
+
+  get hasError() {
+    return !!this.payload.message.error
+  }
+
+  get appId() {
+    return this.payload.options.appId
+  }
+
+  get routingKey() {
+    return this.payload.routingKey
+  }
+
+  set replyTo(value) {
+    this.payload.options.replyTo = value
+  }
+
+  constructor(payload) {
+    this.payload = payload
+    this.payload.options = Object.assign({}, { correlationId: uuid() }, payload.options)
+  }
+
+  toArgs() {
+    return [
+      this.payload.exchange,
+      this.payload.routingKey,
+      toBuffer(this.payload.message),
+      this.payload.options
     ]
-  })
-
-  return message
+  }
 }
+
+module.exports = { OutgoingMessage }
