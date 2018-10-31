@@ -8,97 +8,106 @@ const createContext = require('../src/context')
 
 chalk.enabled = false
 
-const logger = false
-const createAndTest = (fn, options) => {
-  const context = createContext(options)
+let options = { logger: false }
+let context
 
-  fn(context)
-
+const start = (opts = options) => { context = createContext(opts) }
+const shutdown = () => {
   const connected = context.connection.skip(1)
   const channelOpened = context.channel.skip(1)
   const confirmChannelOpened = context.confirmChannel.skip(1)
 
-  combineLatest(connected, channelOpened, confirmChannelOpened)
+  return combineLatest(connected, channelOpened, confirmChannelOpened)
     .first()
-    .subscribe(([connection, channel, confirmChannel]) =>
+    .toPromise()
+    .then(([connection, channel, confirmChannel]) =>
       channel
       && confirmChannel
       && connection
       && context.connection.close())
 }
 
+const resetWith = opts => shutdown().then(() => start(opts))
+
+beforeEach(() => { start() })
+afterEach(() => {
+  options = { logger: false }
+  return shutdown()
+})
+
 describe('#createContext', () => {
-  test('starts connection', () => createAndTest(context => {
+  test('#connections is an instance of BehaviorSubject', () => {
     expect(context.connection).toBeInstanceOf(BehaviorSubject)
-  }, { logger }))
+  })
 
-  test('opens Channel', () => createAndTest(context => {
+  test('#channel is an instance of BehaviorSubject', () => {
     expect(context.channel).toBeInstanceOf(BehaviorSubject)
-  }, { logger }))
+  })
 
-  test('opens ConfirmChannel', () => createAndTest(context => {
+  test('#confirmChannel is an instance of BehaviorSubject', () => {
     expect(context.confirmChannel).toBeInstanceOf(BehaviorSubject)
-  }, { logger }))
+  })
 
-  test('has defined appId', () => {
+  test('#appId is properly defined', () => {
+    expect.assertions(1)
     const APP_ID = 'appId'
 
-    createAndTest(context => {
-      expect(context.confirmChannel).toBeInstanceOf(BehaviorSubject)
-    }, { appId: APP_ID, logger: false })
+    return resetWith({ appId: APP_ID, logger: false })
+      .then(() => expect(context.appId).toEqual(APP_ID))
   })
 
-  test('has pubs map', () => createAndTest(context => {
+  test('#pubs is an instance of Map', () => {
     expect(context.pubs).toBeInstanceOf(Map)
-  }, { logger }))
+  })
 
-  test('has event emitter', () => createAndTest(context => {
+  test('#events is an instance of EventEmitter', () => {
     expect(context.events).toBeInstanceOf(EventEmitter)
-  }, { logger }))
+  })
 
-  test('has default timeout', () => createAndTest(context => {
+  test('#requestTimeout is set to default if not defined', () => {
     expect(context.requestTimeout).toEqual(5000)
-  }, { logger }))
+  })
 
-  test('has defined timeout', () => {
+  test('#requestTimeout is properly defined', () => {
+    expect.assertions(1)
     const requestTimeout = 1000
 
-    createAndTest(context => {
-      expect(context.requestTimeout).toEqual(requestTimeout)
-    }, { requestTimeout, logger: false })
+    return resetWith({ requestTimeout, logger: false })
+      .then(() => expect(context.requestTimeout).toEqual(requestTimeout))
   })
 
-  test('has default logger', () => createAndTest(context => {
-    expect(context.logger).toEqual(console)
-  }))
+  test('#logger is set to default if not defined', () => {
+    expect.assertions(1)
 
-  test('has defined logger', () => {
+    return resetWith({})
+      .then(() => expect(context.logger).toEqual(console))
+  })
+
+  test('#logger is properly defined', () => {
+    expect.assertions(1)
     const loggerMock = { log() {}, warn() {} }
 
-    createAndTest(context => {
-      expect(context.logger).toEqual(loggerMock)
-    }, { logger: loggerMock })
+    return resetWith({ logger: loggerMock })
+      .then(() => expect(context.logger).toEqual(loggerMock))
   })
 
-  test('has defined connectionId', () => {
+  test('#connectionId is properly defined', () => {
+    expect.assertions(1)
     const connectionId = 'connectionId'
 
-    createAndTest(context => {
-      expect(context.connectionId).toEqual(connectionId)
-    }, { connectionId, logger: false })
+    return resetWith({ connectionId, logger: false })
+      .then(() => expect(context.connectionId).toEqual(connectionId))
   })
 
-  test('defaults connectionId to vhost', () => {
-    createAndTest(context => {
-      expect(context.connectionId).toEqual('')
-    }, { logger })
+  test('#connectionId is set to vhost if not defined', () => {
+    expect(context.connectionId).toEqual('')
   })
 
-  test('has publisher contentEncoding set', () => createAndTest(context => {
+  test('#pubOptions.contentEncoding is set to default', () => {
     expect(context.pubOptions.contentEncoding).toEqual('utf-8')
-  }, { logger }))
+  })
 
-  test('has publisher contentType set', () => createAndTest(context => {
+  test('#pubOptions.contentType is set to default', () => {
     expect(context.pubOptions.contentType).toEqual('application/json')
-  }, { logger }))
+  })
 })

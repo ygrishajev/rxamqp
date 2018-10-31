@@ -8,25 +8,30 @@ require('rxjs/add/operator/take')
 require('rxjs/add/operator/partition')
 require('rxjs/add/operator/last')
 
-const start = (channelOptions = {}) => {
-  const DEFAULT_OPTIONS = { logger: false }
-  const rxConnection = connect('amqp://localhost:5672', DEFAULT_OPTIONS)
-  const rxChannel = openChannel(rxConnection, Object.assign(DEFAULT_OPTIONS, channelOptions))
+let rxConnection
+let rxChannel
+let connected
+let channelOpened
+const DEFAULT_OPTIONS = { logger: false }
 
-  return { rxConnection, rxChannel }
+const start = (channelOptions = {}) => {
+  rxConnection = connect('amqp://localhost:5672', DEFAULT_OPTIONS)
+  rxChannel = openChannel(rxConnection, Object.assign(channelOptions, DEFAULT_OPTIONS))
+  connected = rxConnection.skip(1)
+  channelOpened = rxChannel.skip(1)
 }
+
+const resetWith = channelOptions => rxConnection.close().then(() => start(channelOptions))
+
+beforeEach(() => start())
+afterEach(() => rxConnection.close())
 
 describe('rxConnection', () => {
   test('is an instance of BehaviourSubject', () => {
-    const { rxConnection, rxChannel } = start()
-
     expect(rxChannel).toBeInstanceOf(BehaviorSubject)
-
-    return rxConnection.close()
   })
 
-  test('emits Channel on open', () => {
-    const { rxConnection, rxChannel } = start()
+  test('value emitted on open is an instance of Channel', () => {
     expect.assertions(1)
 
     return rxChannel
@@ -34,27 +39,21 @@ describe('rxConnection', () => {
       .first()
       .toPromise()
       .then(channel => expect(channel).toBeInstanceOf(Channel))
-      .then(() => rxConnection.close())
   })
 
-  test('emits ConfirmChannel on open', () => {
-    const { rxConnection, rxChannel } = start({ confirmationMode: true })
+  test('value emitted on open is an instance of ConfirmChannel', () => {
     expect.assertions(1)
 
-    return rxChannel
-      .filter(value => !!value)
-      .first()
-      .toPromise()
-      .then(channel => expect(channel).toBeInstanceOf(ConfirmChannel))
-      .then(() => rxConnection.close())
+    return resetWith({ confirmationMode: true })
+      .then(() => rxChannel
+        .filter(value => !!value)
+        .first()
+        .toPromise()
+        .then(channel => expect(channel).toBeInstanceOf(ConfirmChannel)))
   })
 
-  test('emits null on connection close', () => {
-    const { rxConnection, rxChannel } = start({ confirmationMode: true })
+  test('value emitted on close is null', () => {
     expect.assertions(1)
-
-    const connected = rxConnection.skip(1)
-    const channelOpened = rxChannel.skip(1)
 
     combineLatest(connected, channelOpened)
       .first()
@@ -65,15 +64,10 @@ describe('rxConnection', () => {
       .first()
       .toPromise()
       .then(value => expect(value).toBeNull())
-      .then(() => rxConnection.close())
   })
 
   test('emits Channel on reconnect', () => {
-    const { rxConnection, rxChannel } = start({ confirmationMode: true })
     expect.assertions(1)
-
-    const connected = rxConnection.skip(1)
-    const channelOpened = rxChannel.skip(1)
 
     combineLatest(connected, channelOpened)
       .first()
@@ -84,14 +78,10 @@ describe('rxConnection', () => {
       .first()
       .toPromise()
       .then(channel => expect(channel).toBeInstanceOf(Channel))
-      .then(() => rxConnection.close())
   })
 
   test('recreate Channel on close', () => {
-    const { rxConnection, rxChannel } = start({ confirmationMode: true })
     expect.assertions(1)
-
-    const channelOpened = rxChannel.skip(1)
 
     channelOpened
       .first()
@@ -102,6 +92,5 @@ describe('rxConnection', () => {
       .first()
       .toPromise()
       .then(channel => expect(channel).toBeInstanceOf(Channel))
-      .then(() => rxConnection.close())
   })
 })

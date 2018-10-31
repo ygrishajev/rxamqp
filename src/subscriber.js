@@ -97,11 +97,17 @@ module.exports = context => {
 
     const consume = message => {
       const handlerContext = createContext(prepareOrReject(message))
+      const handleError = error => errorHandler(
+        error,
+        handlerContext.message.payload,
+        handlerContext,
+        defaultErrorHandler
+      )
       const pipeline = middlewares.concat(common).reduceRight(
         (next, current) => error => (error
-          ? errorHandler(error, handlerContext.message.payload, handlerContext, defaultErrorHandler)
+          ? handleError(error)
           : wrap(current)(handlerContext.message.payload, handlerContext, next)),
-        () => {}
+        error => (error ? handleError(error) : () => {})
       )
 
       return pipeline()

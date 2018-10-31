@@ -105,5 +105,4 @@ client.request('amq.topic', 'foo.bar.error.async', { bar: 'bar' })
 ```
 
 ## Roadmap
-* Cover with tests
 * Improve documentation
