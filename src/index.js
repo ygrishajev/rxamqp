@@ -43,6 +43,7 @@ const createClient = ctx => {
       .then(() => {
         shutdownSubscriber()
         shutdownRequester()
+        ctx.events.removeAllListeners()
 
         return { pubRegistry: registry }
       })

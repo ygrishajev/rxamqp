@@ -3,8 +3,7 @@ const { toBuffer } = require('./helpers')
 
 class OutgoingMessage {
   get id() {
-    return this.payload.options
-      && this.payload.options.correlationId
+    return this.options.correlationId
   }
 
   get shortId() {
@@ -12,32 +11,28 @@ class OutgoingMessage {
   }
 
   get hasError() {
-    return !!this.payload.message.error
+    return !!this.message.error
   }
 
   get appId() {
-    return this.payload.options.appId
-  }
-
-  get routingKey() {
-    return this.payload.routingKey
+    return this.options.appId
   }
 
   set replyTo(value) {
-    this.payload.options.replyTo = value
+    this.options.replyTo = value
   }
 
   constructor(payload) {
-    this.payload = payload
-    this.payload.options = Object.assign({}, { correlationId: uuid() }, payload.options)
+    Object.assign(this, payload)
+    this.options = Object.assign({}, { correlationId: uuid() }, payload.options)
   }
 
   toArgs() {
     return [
-      this.payload.exchange,
-      this.payload.routingKey,
-      toBuffer(this.payload.message),
-      this.payload.options
+      this.exchange,
+      this.routingKey,
+      toBuffer(this.message),
+      this.options
     ]
   }
 }

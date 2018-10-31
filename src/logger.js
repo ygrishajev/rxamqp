@@ -19,20 +19,20 @@ const formats = {
     blue(`↓ EVENT<${event.shortId}>`),
     `'${blue(event.routingKey)}'`,
     'received from',
-    blue(event.publisher)
+    `'${blue(event.publisher)}'`
   ], event.payload),
   'event.ack': event => format([
     green(`✔ EVENT<${event.shortId}>`),
     `'${green(event.routingKey)}'`,
     'received from',
-    green(event.publisher),
+    `'${green(event.publisher)}'`,
     'is acknowledged'
   ]),
   'event.nack': event => format([
     red(`✕ EVENT<${event.shortId}>`),
     `'${red(event.routingKey)}'`,
     'received from',
-    red(event.publisher),
+    `'${red(event.publisher)}'`,
     'is rejected'
   ]),
   'request.sent': request => format([

@@ -18,9 +18,9 @@ describe('OutgoingMessage', () => {
   })
 
   test('#shortId consists of 8 first symbols if uuid', () => {
-    const { payload, shortId } = new OutgoingMessage(MESSAGE)
-    const expectedShortId = payload.options.correlationId.slice(0, 8)
-    expect(validate(payload.options.correlationId) && shortId).toEqual(expectedShortId)
+    const { options, shortId } = new OutgoingMessage(MESSAGE)
+    const expectedShortId = options.correlationId.slice(0, 8)
+    expect(validate(options.correlationId) && shortId).toEqual(expectedShortId)
   })
 
   test('#replyTo setter updates message options', () => {
@@ -28,7 +28,7 @@ describe('OutgoingMessage', () => {
     const REPLY_TO = 'replyTo'
     message.replyTo = REPLY_TO
 
-    expect(message.payload.options.replyTo).toEqual(REPLY_TO)
+    expect(message.options.replyTo).toEqual(REPLY_TO)
   })
 
   test('#routngKey is properly defined', () => {
