@@ -45,8 +45,8 @@ module.exports = context => {
     }
   })
 
-  const prepareOrReject = message => {
-    const incoming = new IncomingMessage(message)
+  const prepareOrReject = (message, handlerId) => {
+    const incoming = new IncomingMessage(Object.assign(message, { handlerId }))
     const emit = () => context.events.emit(`${incoming.replyTo ? 'request' : 'event'}.received`, incoming)
 
     try {
@@ -96,7 +96,7 @@ module.exports = context => {
     const [params, ...middlewares] = args
 
     const consume = message => {
-      const handlerContext = createContext(prepareOrReject(message))
+      const handlerContext = createContext(prepareOrReject(message, params.handlerId))
       const handleError = error => errorHandler(
         error,
         handlerContext.message.payload,
@@ -113,7 +113,9 @@ module.exports = context => {
       return pipeline()
     }
 
-    const queue = `${context.appId}.${params.routingKey}`
+    const queue = [context.appId, params.handlerId, params.routingKey]
+      .filter(value => value)
+      .join('.')
 
     const doUse = channel => channel.assertQueue(queue, params.queue)
       .then(() => channel.bindQueue(queue, params.exchange, params.routingKey))

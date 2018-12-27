@@ -9,6 +9,8 @@ const { createMeta } = require('./helpers')
 
 const format = (headParts, body) => `${headParts.join(' ')}${body ? `\n${JSON.stringify(body, null, 2)}` : ''}`
 
+const getHandlerId = event => (event.handlerId && `by '${green(event.handlerId)}'`)
+
 const formats = {
   'event.published': event => format([
     blue(`↑ EVENT<${event.shortId}>`),
@@ -19,22 +21,25 @@ const formats = {
     blue(`↓ EVENT<${event.shortId}>`),
     `'${blue(event.routingKey)}'`,
     'received from',
-    `'${blue(event.publisher)}'`
-  ], event.payload),
+    `'${blue(event.publisher)}'`,
+    getHandlerId(event)
+  ].filter(value => value), event.payload),
   'event.ack': event => format([
     green(`✔ EVENT<${event.shortId}>`),
     `'${green(event.routingKey)}'`,
     'received from',
     `'${green(event.publisher)}'`,
-    'is acknowledged'
-  ]),
+    'is acknowledged',
+    getHandlerId(event)
+  ].filter(value => value)),
   'event.nack': event => format([
     red(`✕ EVENT<${event.shortId}>`),
     `'${red(event.routingKey)}'`,
     'received from',
     `'${red(event.publisher)}'`,
-    'is rejected'
-  ]),
+    'is rejected',
+    getHandlerId(event)
+  ].filter(value => value)),
   'request.sent': request => format([
     blue(`↑ REQUEST<${request.shortId}>`),
     `for '${blue(request.routingKey)}'`,
