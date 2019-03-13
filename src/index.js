@@ -9,7 +9,7 @@ const configureLogger = require('./logger')
 const validateConfig = config => config
 
 const createClient = ctx => {
-  const { publish, registry } = createPublisher(ctx)
+  const { publish, sendToQueue, registry } = createPublisher(ctx)
   const {
     request,
     assertReplyQueue,
@@ -28,6 +28,7 @@ const createClient = ctx => {
     confirmChannel: ctx.confirmChannel,
 
     publish,
+    sendToQueue,
     use: (...args) => {
       use(...args)
       return client

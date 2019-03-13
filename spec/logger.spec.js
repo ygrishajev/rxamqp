@@ -56,11 +56,11 @@ const emit = (event, message) => new Promise(resolve => {
 })
 
 const parse = value => {
-  const payloadStart = value.indexOf('\n')
+  const payloadStart = value.indexOf('|')
 
   return {
-    head: value.slice(0, payloadStart),
-    body: value.slice(payloadStart)
+    head: value.slice(0, payloadStart - 1),
+    body: value.slice(payloadStart + 1)
   }
 }
 

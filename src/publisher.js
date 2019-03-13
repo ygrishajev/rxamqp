@@ -21,8 +21,26 @@ module.exports = ctx => {
       })
   }
 
+  const sendToQueue = (queue, message, clientOptions) => {
+    const event = new OutgoingMessage({
+      queue,
+      message,
+      options: Object.assign({}, ctx.pubOptions, clientOptions)
+    })
+    registry.set(event.id, event)
+
+    return ctx.confirmChannel.sendToQueue(...event.toArgs())
+      .then(() => {
+        registry.delete(event.id)
+        ctx.events.emit('event.published', event)
+
+        return { ok: true }
+      })
+  }
+
   return {
     publish,
+    sendToQueue,
     get registry() { return registry }
   }
 }

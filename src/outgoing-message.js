@@ -18,6 +18,10 @@ class OutgoingMessage {
     return this.options.appId
   }
 
+  get destination() {
+    return this.queue ? [this.queue] : [this.exchange, this.routingKey]
+  }
+
   set replyTo(value) {
     this.options.replyTo = value
   }
@@ -29,8 +33,7 @@ class OutgoingMessage {
 
   toArgs() {
     return [
-      this.exchange,
-      this.routingKey,
+      ...this.destination,
       toBuffer(this.message),
       this.options
     ]

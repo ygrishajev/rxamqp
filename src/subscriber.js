@@ -113,12 +113,12 @@ module.exports = context => {
       return pipeline()
     }
 
-    const queue = [context.appId, params.handlerId, params.routingKey]
+    const queue = params.queue || [context.appId, params.handlerId, params.routingKey]
       .filter(value => value)
       .join('.')
 
-    const doUse = channel => channel.assertQueue(queue, params.queue)
-      .then(() => channel.bindQueue(queue, params.exchange, params.routingKey))
+    const doUse = channel => channel.assertQueue(queue, params.queueOptions)
+      .then(() => params.routingKey && channel.bindQueue(queue, params.exchange, params.routingKey))
       .then(() => context.events.emit('requestQueue.configured', queue))
       .then(() => channel.consume(queue, consume, params.consumer))
 
