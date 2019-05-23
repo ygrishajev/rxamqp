@@ -97,6 +97,22 @@ module.exports = ctx => {
         .then(() => ctx.events.emit('request.sent', request))
         .then(() => toPromise(watcher))
     },
+    requestByQueue: (queue, message, clientOptions) => {
+      const request = new OutgoingMessage({
+        routingKey: queue,
+        message,
+        options: Object.assign({}, clientOptions, ctx.pubOptions)
+      }, ctx)
+      const watcher = register(request)
+
+      return assertReplyQueue(queue)
+        .then(replyTo => {
+          request.replyTo = replyTo
+          return ctx.channel.publish(...request.toArgs({ withExchange: true }))
+        })
+        .then(() => ctx.events.emit('request.sent', request))
+        .then(() => toPromise(watcher))
+    },
     assertReplyQueue: keys => (Array.isArray(keys) ?
       Promise.all(keys.map(assertReplyQueue)) :
       assertReplyQueue(keys)),

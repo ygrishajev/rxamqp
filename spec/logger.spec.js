@@ -16,7 +16,7 @@ const toCtx = logger => toLogger({
 })
 
 const shortUuidRegex = ')([0-9a-f]{8})('
-const toRegex = body => new RegExp(`^\\[([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]\\] (\\[AMQP:${CONNECTION_ID}\\] ${body})$`)
+const toRegex = body => new RegExp(`^\\[(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2})\\:(\\d{2})\\:(\\d{2}).([0-9]{2,3})Z\\] (\\[AMQP:${CONNECTION_ID}\\] ${body})$`)
 
 const REPLY_TO = 'replyTo'
 const APP_ID = 'appId'
@@ -65,7 +65,7 @@ const parse = value => {
 }
 
 describe('Logger', () => {
-  test('logs \'event.published\'', () => {
+  it('logs \'event.published\'', () => {
     expect.assertions(2)
 
     return emit('event.published', outgoingMessage)

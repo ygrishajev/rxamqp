@@ -2,14 +2,21 @@ const createClient = require('../src')
 
 const EXCHANGE = 'amq.topic'
 const ROUTING_KEY = 'foo.bar'
+const ROUTING_KEY_SECONDARY = 'bar.foo'
 const MESSAGE = { foo: 'bar' }
+const MESSAGE_SECONDARY = { bar: 'foo' }
 const ERROR = { message: 'bad one' }
 
 let client
-const use = (...middlewares) => client.use({
+const usageOptions = {
   exchange: EXCHANGE,
-  routingKey: ROUTING_KEY
-}, ...middlewares)
+  routingKey: ROUTING_KEY,
+  queueOptions: {
+    durable: false,
+    autoDelete: true
+  }
+}
+const use = (...middlewares) => client.use(usageOptions, ...middlewares)
 
 beforeEach(() => { client = createClient({ logger: false }) })
 afterEach(() => client.shutdown())
@@ -20,14 +27,42 @@ describe('Client', () => {
 
     return new Promise(resolve => {
       use((msg, ctx) => {
-        ctx.ack()
-        resolve(msg)
+        ctx.ack().then(() => resolve(msg))
       })
         .listen()
 
       client.events.on('requestQueue.configured', () => client.publish(EXCHANGE, ROUTING_KEY, MESSAGE))
     })
       .then(message => expect(message).toMatchObject(MESSAGE))
+  })
+
+  test('#publish message payload is properly delivered subscriber with multiple bindings', () => {
+    expect.assertions(1)
+
+    return new Promise(resolve => {
+      const messages = {}
+
+      client.use(Object.assign(usageOptions, {
+        routingKey: [ROUTING_KEY, ROUTING_KEY_SECONDARY]
+      }), (payload, { message, ack }) => {
+        messages[message.routingKey] = payload
+        ack().then(() => {
+          if (Object.keys(messages).length === 2) {
+            resolve(messages)
+          }
+        })
+      })
+        .listen()
+
+      client.events.on('requestQueue.configured', () => {
+        client.publish(EXCHANGE, ROUTING_KEY_SECONDARY, MESSAGE_SECONDARY)
+        client.publish(EXCHANGE, ROUTING_KEY, MESSAGE)
+      })
+    })
+      .then(message => expect(message).toMatchObject({
+        [ROUTING_KEY]: MESSAGE,
+        [ROUTING_KEY_SECONDARY]: MESSAGE_SECONDARY
+      }))
   })
 
   test('#request receives a proper success response from subscriber', () => {

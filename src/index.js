@@ -19,6 +19,7 @@ const createClient = ctx => {
   const {
     use,
     listen: startSubscriberRoutines,
+    resubscribe,
     shutdown: shutdownSubscriber
   } = createSubscriber(ctx)
 
@@ -37,6 +38,7 @@ const createClient = ctx => {
       startRequesterRoutines()
       startSubscriberRoutines()
     },
+    resubscribe,
     request,
     assertReplyQueue,
     events: ctx.events,

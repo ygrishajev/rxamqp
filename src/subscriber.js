@@ -1,7 +1,7 @@
 const { Subject } = require('rxjs')
 require('rxjs/add/operator/takeUntil')
 
-const { toBuffer } = require('./helpers')
+const { toBuffer, castArray } = require('./helpers')
 const { IncomingMessage } = require('./incoming-message')
 
 const REPLY_OPTIONS = {
@@ -37,11 +37,11 @@ module.exports = context => {
     rejectAndRespond: payload => message.replyTo && reject({ error: payload }, message),
     ack: () => {
       context.events.emit('event.ack', message)
-      context.channel.ack(message)
+      return context.channel.ack(message)
     },
     reject: (requeue = false) => {
       context.events.emit('event.nack', message)
-      context.channel.reject(message, requeue)
+      return context.channel.reject(message, requeue)
     }
   })
 
@@ -113,12 +113,14 @@ module.exports = context => {
       return pipeline()
     }
 
-    const queue = params.queue || [context.appId, params.handlerId, params.routingKey]
+    const routingKeys = castArray(params.routingKey)
+    const queue = params.queue || [context.appId, params.handlerId, routingKeys.join('.')]
       .filter(value => value)
       .join('.')
 
     const doUse = channel => channel.assertQueue(queue, params.queueOptions)
-      .then(() => params.routingKey && channel.bindQueue(queue, params.exchange, params.routingKey))
+      .then(() => routingKeys.length && Promise.all(routingKeys.map(routingKey => channel
+        .bindQueue(queue, params.exchange, routingKey))))
       .then(() => context.events.emit('requestQueue.configured', queue))
       .then(() => channel.consume(queue, consume, params.consumer))
 
@@ -126,6 +128,7 @@ module.exports = context => {
   }
 
   const shutdown = new Subject()
+  const resubscribe = new Subject()
 
   const listen = () => {
     let isDisconnected = true
@@ -134,7 +137,8 @@ module.exports = context => {
       .takeUntil(shutdown)
       .subscribe(channel => {
         if (channel && typeof use === 'function' && isDisconnected) {
-          uses.forEach(doUse => doUse(channel))
+          Promise.all(uses.map(doUse => doUse(channel)))
+            .then(() => resubscribe.next())
           isDisconnected = false
         }
 
@@ -147,6 +151,7 @@ module.exports = context => {
   return {
     use,
     listen,
+    resubscribe,
     shutdown: () => {
       shutdown.next(true)
       shutdown.complete()

@@ -37,12 +37,15 @@ const toVhost = url => {
 
 const toBuffer = obj => Buffer.from(JSON.stringify(obj, null, '\t'))
 
-const createMeta = source => `[${grey(new Date().toTimeString().split(' ')[0])}] [${source}]`
+const createMeta = source => `[${grey(new Date().toISOString())}] [${source}]`
+
+const castArray = value => (Array.isArray(value) ? value : [value])
 
 module.exports = {
   withDefault,
   createMeta,
   toPromise,
   toVhost,
-  toBuffer
+  toBuffer,
+  castArray
 }
