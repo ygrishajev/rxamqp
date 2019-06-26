@@ -6,7 +6,6 @@ require('rxjs/add/operator/filter')
 const {
   withDefault,
   createMeta,
-  toPromise,
   toVhost
 } = require('./helpers')
 
@@ -17,6 +16,7 @@ const connect = (url, options = {}) => startRxConnection(
 )
 
 function startRxConnection(url, store, options) {
+  let isClosed = false
   const logger = withDefault(options.logger, console)
   const connectionId = options.connectionId || toVhost(url)
   const prefix = createMeta(connectionId ? `AMQP:${connectionId}` : 'AMQP')
@@ -24,6 +24,8 @@ function startRxConnection(url, store, options) {
   const log = message => logger && logger.log(`${prefix} ${message}`)
 
   const reconnect = delay => {
+    if (isClosed) { return }
+
     log(`Reconnecting in ${delay / 1000} seconds...`)
     setTimeout(() => startRxConnection(url, store, options), delay)
   }
@@ -35,8 +37,10 @@ function startRxConnection(url, store, options) {
 
       connection.on('close', () => {
         log('Connection was closed')
-        store.next(null)
-        reconnect(1000)
+        if (!isClosed) {
+          store.next(null)
+          reconnect(1000)
+        }
       })
 
       log('Connected')
@@ -51,13 +55,20 @@ function startRxConnection(url, store, options) {
     })
 
   store.close = function cleanupAndClose() { // eslint-disable-line no-param-reassign
-    return toPromise(this)
+    return this
+      .first()
+      .toPromise()
       .then(connection => {
-        connection.removeAllListeners()
+        isClosed = true
         this.awaitingConnection = null
-        this.next(null)
+        store.next(null)
 
-        return connection.close()
+        if (connection) {
+          connection.removeAllListeners()
+          return connection.close()
+        }
+
+        return null
       })
       .then(() => {
         log('Connection was closed')

@@ -1,12 +1,12 @@
 {
   "name": "rxamqp",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Library for easy amqplib configuration and usage",
   "main": "./src/index.js",
   "scripts": {
     "start": "nodemon ./src/index.js",
     "lint": "eslint src",
-    "test": "jest --coverage --runInBand spec"
+    "test": "jest --coverage --forceExit spec"
   },
   "author": {
     "name": "Yaroslav Grishajev",

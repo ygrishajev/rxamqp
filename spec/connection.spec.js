@@ -27,7 +27,7 @@ describe('rxConnection', () => {
       .then(connection => expect(connection).toBeInstanceOf(ChannelModel))
   })
 
-  test('emits null on connection close', () => {
+  it('emits null on connection close', () => {
     expect.assertions(1)
 
     const connected = rxConnection.skip(1)
