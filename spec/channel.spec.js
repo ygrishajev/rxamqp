@@ -14,7 +14,11 @@ let rxConnection
 let rxChannel
 let connected
 let channelOpened
-const DEFAULT_OPTIONS = config.logging ? {} : { logger: false }
+const DEFAULT_OPTIONS = { reconnectTimeout: 1 }
+
+if (!config.logging) {
+  DEFAULT_OPTIONS.logger = false
+}
 
 const start = (channelOptions = {}) => {
   rxConnection = connect(config.amqpUri, DEFAULT_OPTIONS)

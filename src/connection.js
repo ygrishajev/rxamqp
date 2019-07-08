@@ -15,7 +15,7 @@ const connect = (url, options = {}) => startRxConnection(
   options
 )
 
-function startRxConnection(url, store, options) {
+function startRxConnection(url, store, options, reconnectCount = 1) {
   let isClosed = false
   const logger = withDefault(options.logger, console)
   const connectionId = options.connectionId || toVhost(url)
@@ -23,11 +23,21 @@ function startRxConnection(url, store, options) {
 
   const log = message => logger && logger.log(`${prefix} ${message}`)
 
-  const reconnect = delay => {
-    if (isClosed) { return }
+  let reconnectTimeout = options.reconnectTimeout || 5000
 
-    log(`Reconnecting in ${delay / 1000} seconds...`)
-    setTimeout(() => startRxConnection(url, store, options), delay)
+  const reconnect = () => {
+    if (isClosed) { return }
+    if (typeof reconnectTimeout === 'function') {
+      reconnectTimeout = reconnectTimeout(reconnectCount)
+    }
+
+    log(`Reconnecting in ${reconnectTimeout / 1000} seconds...`)
+    setTimeout(() => startRxConnection(
+      url,
+      store,
+      options,
+      reconnectCount + 1
+    ), reconnectTimeout)
   }
 
   store.awaitingConnection = Promise.resolve(amqp.connect(url)) // eslint-disable-line
@@ -39,7 +49,7 @@ function startRxConnection(url, store, options) {
         log('Connection was closed')
         if (!isClosed) {
           store.next(null)
-          reconnect(1000)
+          reconnect()
         }
       })
 
@@ -51,7 +61,7 @@ function startRxConnection(url, store, options) {
       if (logger) {
         logger.warn(`${prefix} Failed to connect: ${error.message}`)
       }
-      reconnect(5000)
+      reconnect()
     })
 
   store.close = function cleanupAndClose() { // eslint-disable-line no-param-reassign

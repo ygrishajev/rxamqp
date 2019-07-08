@@ -10,8 +10,13 @@ const config = require('./config')
 
 let rxConnection
 
-const OPTIONS = config.logging ? {} : { logger: false }
-beforeEach(() => { rxConnection = connect(config.amqpUri, OPTIONS) })
+const DEFAULT_OPTIONS = { reconnectTimeout: 1 }
+
+if (!config.logging) {
+  DEFAULT_OPTIONS.logger = false
+}
+
+beforeEach(() => { rxConnection = connect(config.amqpUri, DEFAULT_OPTIONS) })
 afterEach(() => rxConnection.close())
 
 describe('rxConnection', () => {
@@ -59,7 +64,7 @@ describe('rxConnection', () => {
 
   test('#close closes connection and cleans up', () => {
     expect.assertions(3)
-    const connections = connect(config.amqpUri, config.logging ? {} : { logger: false })
+    const connections = connect(config.amqpUri, DEFAULT_OPTIONS)
 
     return connections.close()
       .then(() => {

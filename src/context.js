@@ -22,7 +22,9 @@ module.exports = (extend = {}) => {
   const connectionId = withDefault(extend.connectionId, () => toVhost(extend.url))
   const commonOpts = { logger, connectionId }
 
-  config.connection = connect(extend.url, commonOpts)
+  config.connection = connect(extend.url, Object.assign({}, commonOpts, {
+    reconnectTimeout: extend.reconnectTimeout
+  }))
   config.channel = openChannel(config.connection, commonOpts)
   config.confirmChannel = openChannel(
     config.connection,
