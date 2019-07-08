@@ -1,0 +1,30 @@
+version: "2.1"
+
+services:
+  spec:
+    build:
+      context: .
+    command: npm run test:watch
+    volumes:
+      - .:/usr/src/app
+      - ./node_modules:/usr/src/app/node_modules
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    links:
+      - rabbitmq
+    env_file:
+      - docker-compose.env
+  rabbitmq:
+    image: registry.gitlab.com/trysimply/cloud/rabbitmq-test
+    restart: on-failure
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    env_file:
+      - docker-compose.env
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      timeout: 5s
+      interval: 5s
+      retries: 5

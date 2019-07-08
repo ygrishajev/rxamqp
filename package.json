@@ -1,12 +1,14 @@
 {
   "name": "rxamqp",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Library for easy amqplib configuration and usage",
   "main": "./src/index.js",
   "scripts": {
     "start": "nodemon ./src/index.js",
+    "start:test": "nodemon ./src/test.js",
     "lint": "eslint src",
-    "test": "jest --coverage --forceExit spec"
+    "test": "jest --coverage --collectCoverageFrom --forceExit spec",
+    "test:watch": "nodemon --watch . --exec 'jest --runInBand spec'"
   },
   "author": {
     "name": "Yaroslav Grishajev",
@@ -46,6 +48,7 @@
     "husky": "^0.14.3",
     "jest": "^23.1.0",
     "nodemon": "^1.14.12",
+    "proxyquire": "^2.1.0",
     "uuid-validate": "0.0.3"
   },
   "husky": {

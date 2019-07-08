@@ -6,11 +6,13 @@ require('rxjs/add/operator/take')
 require('rxjs/add/operator/partition')
 require('rxjs/add/operator/last')
 
+const config = require('./config')
+
 let rxConnection
 
-beforeEach(() => { rxConnection = connect('amqp://localhost:5672', { logger: false }) })
+const OPTIONS = config.logging ? {} : { logger: false }
+beforeEach(() => { rxConnection = connect(config.amqpUri, OPTIONS) })
 afterEach(() => rxConnection.close())
-
 
 describe('rxConnection', () => {
   test('is an instance of BehaviourSubject', () => {
@@ -57,7 +59,7 @@ describe('rxConnection', () => {
 
   test('#close closes connection and cleans up', () => {
     expect.assertions(3)
-    const connections = connect('amqp://localhost:5672', { logger: false })
+    const connections = connect(config.amqpUri, config.logging ? {} : { logger: false })
 
     return connections.close()
       .then(() => {

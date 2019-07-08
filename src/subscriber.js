@@ -69,6 +69,7 @@ module.exports = context => {
   let errorHandler = error => defaultErrorHandler(error)
   const uses = []
   const common = []
+  let isListening = false
 
   const wrap = middleware => (...args) => {
     try {
@@ -125,25 +126,31 @@ module.exports = context => {
       .then(() => channel.consume(queue, consume, params.consumer))
 
     uses.push(doUse)
+
+    if (isListening) {
+      context.channel
+        .first()
+        .subscribe(doUse)
+    }
   }
 
   const shutdown = new Subject()
   const resubscribe = new Subject()
 
   const listen = () => {
-    let isDisconnected = true
+    isListening = true
 
     context.channel
       .takeUntil(shutdown)
       .subscribe(channel => {
-        if (channel && typeof use === 'function' && isDisconnected) {
+        if (channel && typeof use === 'function' && !isListening) {
           Promise.all(uses.map(doUse => doUse(channel)))
             .then(() => resubscribe.next())
-          isDisconnected = false
+          isListening = true
         }
 
         if (!channel) {
-          isDisconnected = true
+          isListening = false
         }
       })
   }

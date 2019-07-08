@@ -8,14 +8,16 @@ require('rxjs/add/operator/take')
 require('rxjs/add/operator/partition')
 require('rxjs/add/operator/last')
 
+const config = require('./config')
+
 let rxConnection
 let rxChannel
 let connected
 let channelOpened
-const DEFAULT_OPTIONS = { logger: false }
+const DEFAULT_OPTIONS = config.logging ? {} : { logger: false }
 
 const start = (channelOptions = {}) => {
-  rxConnection = connect('amqp://localhost:5672', DEFAULT_OPTIONS)
+  rxConnection = connect(config.amqpUri, DEFAULT_OPTIONS)
   rxChannel = openChannel(rxConnection, Object.assign(channelOptions, DEFAULT_OPTIONS))
   connected = rxConnection.skip(1)
   channelOpened = rxChannel.skip(1)
