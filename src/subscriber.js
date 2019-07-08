@@ -60,6 +60,8 @@ module.exports = context => {
     return incoming
   }
 
+  const uses = {}
+
   const defaultErrorHandler = error => {
     if (error) {
       console.warn('Error: unhandled error passed to \'next\'') // eslint-disable-line no-console
@@ -67,7 +69,6 @@ module.exports = context => {
     }
   }
   let errorHandler = error => defaultErrorHandler(error)
-  const uses = []
   const common = []
   let isListening = false
 
@@ -79,6 +80,10 @@ module.exports = context => {
       return errorHandler(error, payload, ctx, defaultErrorHandler)
     }
   }
+
+  const toQueueName = params => params.queue || [context.appId, params.handlerId, castArray(params.routingKey).join('.')]
+    .filter(value => value)
+    .join('.')
 
   // TODO: implement global middlewares
   // TODO: ensure proper handling of multiple message ack error to avoid reconnection
@@ -97,6 +102,8 @@ module.exports = context => {
     const [params, ...middlewares] = args
 
     const consume = message => {
+      if (!message) { return null }
+
       const handlerContext = createContext(prepareOrReject(message, params.handlerId))
       const handleError = error => errorHandler(
         error,
@@ -115,17 +122,16 @@ module.exports = context => {
     }
 
     const routingKeys = castArray(params.routingKey)
-    const queue = params.queue || [context.appId, params.handlerId, routingKeys.join('.')]
-      .filter(value => value)
-      .join('.')
+    const queue = toQueueName(params)
 
     const doUse = channel => channel.assertQueue(queue, params.queueOptions)
-      .then(() => routingKeys.length && Promise.all(routingKeys.map(routingKey => channel
-        .bindQueue(queue, params.exchange, routingKey))))
+      .then(() => routingKeys.length && Promise.all(routingKeys
+        .map(routingKey => channel
+          .bindQueue(queue, params.exchange, routingKey))))
       .then(() => context.events.emit('requestQueue.configured', queue))
       .then(() => channel.consume(queue, consume, params.consumer))
 
-    uses.push(doUse)
+    uses[queue] = doUse
 
     if (isListening) {
       context.channel
@@ -144,7 +150,7 @@ module.exports = context => {
       .takeUntil(shutdown)
       .subscribe(channel => {
         if (channel && typeof use === 'function' && !isListening) {
-          Promise.all(uses.map(doUse => doUse(channel)))
+          Promise.all(Object.keys(uses).map(key => uses[key](channel)))
             .then(() => resubscribe.next())
           isListening = true
         }
@@ -155,10 +161,21 @@ module.exports = context => {
       })
   }
 
+  const deleteQueue = params => {
+    const queue = toQueueName(params)
+    return context.channel
+      .first()
+      .toPromise()
+      .then(channel => channel.deleteQueue(queue))
+      .then(() => { delete uses[queue] })
+      .then(() => context.events.emit('requestQueue.deleted', queue))
+  }
+
   return {
     use,
     listen,
     resubscribe,
+    deleteQueue,
     shutdown: () => {
       shutdown.next(true)
       shutdown.complete()

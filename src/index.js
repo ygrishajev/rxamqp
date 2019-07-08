@@ -20,7 +20,8 @@ const createClient = ctx => {
     use,
     listen: startSubscriberRoutines,
     resubscribe,
-    shutdown: shutdownSubscriber
+    shutdown: shutdownSubscriber,
+    deleteQueue
   } = createSubscriber(ctx)
 
   const client = {
@@ -34,6 +35,7 @@ const createClient = ctx => {
       use(...args)
       return client
     },
+    deleteQueue,
     listen: () => {
       startRequesterRoutines()
       startSubscriberRoutines()

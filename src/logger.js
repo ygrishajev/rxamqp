@@ -72,7 +72,8 @@ const formats = {
     response.publisher ? `from '${green(response.publisher)}'` : ''
   ], response.payload),
   'queue.configured': replyTo => `${yellow(`QUEUE ${replyTo}`)} is listening for ${yellow('replies')}`,
-  'requestQueue.configured': replyTo => `${yellow(`QUEUE ${replyTo}`)} is listening for ${yellow('requests')}`
+  'requestQueue.configured': replyTo => `${yellow(`QUEUE ${replyTo}`)} is listening for ${yellow('requests')}`,
+  'requestQueue.deleted': queue => `${red(`QUEUE ${queue}`)} is deleted`
 }
 
 const toLogger = (logger, prefix) => (message, data) => {
