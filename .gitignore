@@ -5,3 +5,4 @@ npm-debug.log
 coverage
 test.js
 rxamqp.js
+.npmrc
