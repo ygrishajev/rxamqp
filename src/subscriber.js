@@ -33,8 +33,14 @@ module.exports = context => {
   const createContext = message => ({
     message,
     channel: context.channel,
-    respond: payload => message.replyTo && respond({ data: payload }, message),
-    rejectAndRespond: payload => message.replyTo && reject({ error: payload }, message),
+    respond: (payload, status) => message.replyTo && respond({
+      data: payload,
+      status: status || 200
+    }, message),
+    rejectAndRespond: (payload, status) => message.replyTo && reject({
+      error: payload,
+      status: status || payload.status || 500
+    }, message),
     ack: () => {
       context.events.emit('event.ack', message)
       return context.channel.ack(message)
