@@ -10,15 +10,18 @@ module.exports = ctx => {
       message,
       options: Object.assign({}, ctx.pubOptions, clientOptions)
     })
-    registry.set(event.id, event)
 
-    return ctx.confirmChannel.publish(...event.toArgs())
+    const publishAwait = ctx.confirmChannel.publish(...event.toArgs())
       .then(() => {
         registry.delete(event.id)
         ctx.events.emit('event.published', event)
 
         return { ok: true }
       })
+
+    registry.set(event.id, { event, publishAwait })
+
+    return publishAwait
   }
 
   const sendToQueue = (queue, message, clientOptions) => {
@@ -27,20 +30,27 @@ module.exports = ctx => {
       message,
       options: Object.assign({}, ctx.pubOptions, clientOptions)
     })
-    registry.set(event.id, event)
 
-    return ctx.confirmChannel.sendToQueue(...event.toArgs())
+    const publishAwait = ctx.confirmChannel.sendToQueue(...event.toArgs())
       .then(() => {
         registry.delete(event.id)
         ctx.events.emit('event.published', event)
 
         return { ok: true }
       })
+
+    registry.set(event.id, { event, publishAwait })
+
+    return publishAwait
   }
+
+  const shutdown = () => Promise
+    .all(Array.from(registry.values())
+      .map(item => item.publishAwait))
 
   return {
     publish,
     sendToQueue,
-    get registry() { return registry }
+    shutdown
   }
 }

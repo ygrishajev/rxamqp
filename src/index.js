@@ -9,7 +9,11 @@ const configureLogger = require('./logger')
 const validateConfig = config => config
 
 const createClient = ctx => {
-  const { publish, sendToQueue, registry } = createPublisher(ctx)
+  const {
+    publish,
+    sendToQueue,
+    shutdown: shutdownPublisher
+  } = createPublisher(ctx)
   const {
     request,
     assertReplyQueue,
@@ -44,14 +48,14 @@ const createClient = ctx => {
     request,
     assertReplyQueue,
     events: ctx.events,
-    shutdown: () => ctx.connection.close()
-      .then(() => {
-        shutdownSubscriber()
-        shutdownRequester()
-        ctx.events.removeAllListeners()
+    shutdown: () => {
+      shutdownSubscriber()
+      shutdownRequester()
+      ctx.events.removeAllListeners()
 
-        return { pubRegistry: registry }
-      })
+      return shutdownPublisher()
+        .then(() => ctx.connection.close())
+    }
   }
 
   return client
