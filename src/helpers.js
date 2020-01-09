@@ -39,7 +39,7 @@ const toBuffer = obj => Buffer.from(JSON.stringify(obj, null, '\t'))
 
 const createMeta = source => `[${grey(new Date().toISOString())}] [${source}]`
 
-const castArray = value => (Array.isArray(value) ? value : [value])
+const castArray = value => (Array.isArray(value) ? value : [value]).filter(v => v)
 
 module.exports = {
   withDefault,
