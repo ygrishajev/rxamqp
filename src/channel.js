@@ -55,7 +55,7 @@ function startRxChannel(connection, store, options) {
       log(`${options.confirmationMode ? 'Confirm ' : ''}Channel has been opened`)
       Object.assign(channel, { connectionId })
 
-      if (options.prefetch) {
+      if (options && options.prefetch) {
         channel.prefetch(options.prefetch)
       }
 

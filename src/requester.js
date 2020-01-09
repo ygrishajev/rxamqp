@@ -67,7 +67,7 @@ module.exports = ctx => {
       const resolve = response.hasError ? 'error' : 'next'
       watcher[resolve](response.payload)
 
-      if (!options.asObservable) {
+      if (!options || !options.asObservable) {
         watcher.complete()
       }
 
