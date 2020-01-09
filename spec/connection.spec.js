@@ -16,7 +16,7 @@ if (!config.logging) {
   DEFAULT_OPTIONS.logger = false
 }
 
-beforeEach(() => { rxConnection = connect(config.amqpUri, DEFAULT_OPTIONS) })
+beforeEach(() => { rxConnection = connect(config.url, DEFAULT_OPTIONS) })
 afterEach(() => rxConnection.close())
 
 describe('rxConnection', () => {

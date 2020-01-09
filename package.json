@@ -1,6 +1,6 @@
 {
   "name": "rxamqp",
-  "version": "0.2.6",
+  "version": "0.2.8",
   "description": "Library for easy amqplib configuration and usage",
   "main": "./src/index.js",
   "scripts": {
@@ -8,7 +8,8 @@
     "start:test": "nodemon ./src/test.js",
     "lint": "eslint src",
     "test": "jest --coverage --collectCoverageFrom --forceExit spec",
-    "test:watch": "nodemon --watch . --exec 'jest --runInBand spec'"
+    "test:watch": "nodemon --watch . --exec 'jest --runInBand spec'",
+    "playground": "nodemon ./src/test.js"
   },
   "author": {
     "name": "Yaroslav Grishajev",

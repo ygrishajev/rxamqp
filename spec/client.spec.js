@@ -1,4 +1,5 @@
 const createClient = require('../src')
+const config = require('./config')
 
 const EXCHANGE = 'amq.topic'
 const ROUTING_KEY = 'foo.bar'
@@ -18,7 +19,7 @@ const usageOptions = {
 }
 const use = (...middlewares) => client.use(usageOptions, ...middlewares)
 
-beforeEach(() => { client = createClient({ logger: false }) })
+beforeEach(() => { client = createClient(Object.assign({}, { config, logger: false })) })
 afterEach(() => client.shutdown())
 
 describe('Client', () => {

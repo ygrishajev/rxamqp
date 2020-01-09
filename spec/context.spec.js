@@ -5,13 +5,14 @@ require('rxjs/add/operator/skip')
 const chalk = require('chalk')
 
 const createContext = require('../src/context')
+const config = require('./config')
 
 chalk.enabled = false
 
 let options = { logger: false }
 let context
 
-const start = (opts = options) => { context = createContext(opts) }
+const start = (opts = options) => { context = createContext(Object.assign({}, config, opts)) }
 const shutdown = () => {
   const connected = context.connection.skip(1)
   const channelOpened = context.channel.skip(1)
@@ -99,9 +100,8 @@ describe('#createContext', () => {
       .then(() => expect(context.connectionId).toEqual(connectionId))
   })
 
-  test('#connectionId is set to vhost if not defined', () => {
-    expect(context.connectionId).toEqual('')
-  })
+  test('#connectionId is set to vhost if not defined', () => resetWith({ logger: false })
+    .then(() => expect(context.connectionId).toEqual('/')))
 
   test('#pubOptions.contentEncoding is set to default', () => {
     expect(context.pubOptions.contentEncoding).toEqual('utf-8')

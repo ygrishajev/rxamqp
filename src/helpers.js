@@ -32,7 +32,7 @@ const toVhost = url => {
     return url.vhost
   }
 
-  return ''
+  return '/'
 }
 
 const toBuffer = obj => Buffer.from(JSON.stringify(obj, null, '\t'))

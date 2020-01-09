@@ -16,9 +16,12 @@ module.exports = context => {
       correlationId: message.id
     }, REPLY_OPTIONS))
 
-  const respond = (payload, message) => {
+  const respond = (payload, message, options = { ack: true }) => {
     context.events.emit('response.success.sent', { message, payload })
-    context.channel.ack(message)
+
+    if (options.ack) {
+      context.channel.ack(message)
+    }
 
     return sendToQueue(payload, message)
   }
@@ -33,14 +36,18 @@ module.exports = context => {
   const createContext = message => ({
     message,
     channel: context.channel,
-    respond: (payload, status) => message.replyTo && respond({
+    respond: (payload, options) => message.replyTo && respond({
       data: payload,
-      status: status || 200
-    }, message),
+      status: (options && options.status) || 200
+    }, message, options),
     rejectAndRespond: (payload, status) => message.replyTo && reject({
       error: payload,
       status: status || payload.status || 500
     }, message),
+    ackAndRespond: (payload, status) => message.replyTo && respond({
+      data: payload,
+      status: status || 200
+    }, message, { ack: true }),
     ack: () => {
       context.events.emit('event.ack', message)
       return context.channel.ack(message)

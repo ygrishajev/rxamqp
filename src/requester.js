@@ -17,11 +17,15 @@ module.exports = ctx => {
   let replyQueues = {}
   let channelId = uuid()
 
-  function register(request) {
+  function register(request, options) {
     const watcher = new Subject()
     requests.set(request.id, watcher)
 
-    const timer = setTimeout(() => watcher.error(new Error(`Request <${request.shortId}> timeout `)), ctx.requestTimeout)
+    let timer
+
+    if (!options || !options.asObservable) {
+      timer = setTimeout(() => watcher.error(new Error(`Request <${request.shortId}> timeout `)), ctx.requestTimeout)
+    }
 
     const deregister = () => {
       clearTimeout(timer)
@@ -33,7 +37,7 @@ module.exports = ctx => {
     return watcher
   }
 
-  function assertReplyQueue(routingKey) {
+  function assertReplyQueue(routingKey, options) {
     if (replyQueues[routingKey]) {
       return Promise.resolve(replyQueues[routingKey])
     }
@@ -43,25 +47,32 @@ module.exports = ctx => {
     replyKeys.add(routingKey)
 
     return ctx.channel.assertQueue(replyTo, REPLY_QUEUE_OPTIONS)
-      .then(() => ctx.channel.consume(replyTo, resolveReply, { noAck: true }))
+      .then(() => ctx.channel.consume(replyTo, resolveReply(options), { noAck: true }))
       .then(() => {
         ctx.events.emit('queue.configured', replyTo)
         return replyTo
       })
   }
 
-  function resolveReply(message) {
-    const response = new IncomingMessage(message)
-    if (!requests.has(response.id)) { return }
+  function resolveReply(options) {
+    return message => {
+      const response = new IncomingMessage(message)
+      if (!requests.has(response.id)) {
+        return
+      }
 
-    const watcher = requests.get(response.id)
-    response.parse()
+      const watcher = requests.get(response.id)
+      response.parse()
 
-    const resolve = response.hasError ? 'error' : 'next'
-    watcher[resolve](response.payload)
-    watcher.complete()
+      const resolve = response.hasError ? 'error' : 'next'
+      watcher[resolve](response.payload)
 
-    ctx.events.emit(`response.${response.hasError ? 'error' : 'success'}.received`, response)
+      if (!options.asObservable) {
+        watcher.complete()
+      }
+
+      ctx.events.emit(`response.${response.hasError ? 'error' : 'success'}.received`, response)
+    }
   }
 
   const shutdown = new Subject()
@@ -87,15 +98,19 @@ module.exports = ctx => {
         message,
         options: Object.assign({}, clientOptions, ctx.pubOptions)
       }, ctx)
-      const watcher = register(request)
-
-      return assertReplyQueue(routingKey)
+      const watcher = register(request, clientOptions)
+      const obtainObserver = assertReplyQueue(routingKey, clientOptions)
         .then(replyTo => {
           request.replyTo = replyTo
           return ctx.channel.publish(...request.toArgs({ withExchange: true }))
         })
         .then(() => ctx.events.emit('request.sent', request))
-        .then(() => toPromise(watcher))
+
+      if (clientOptions && clientOptions.asObservable) {
+        return watcher
+      }
+
+      return obtainObserver.then(() => toPromise(watcher))
     },
     requestByQueue: (queue, message, clientOptions) => {
       const request = new OutgoingMessage({

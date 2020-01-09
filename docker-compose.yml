@@ -4,6 +4,8 @@ services:
   spec:
     build:
       context: .
+      args:
+        YG_NPM_TOKEN: ${YG_NPM_TOKEN}
     command: npm run test:watch
     volumes:
       - .:/usr/src/app
@@ -15,6 +17,8 @@ services:
       - rabbitmq
     env_file:
       - docker-compose.env
+    environment:
+      YG_NPM_TOKEN: ${YG_NPM_TOKEN}
   rabbitmq:
     image: registry.gitlab.com/trysimply/cloud/rabbitmq-test
     restart: on-failure

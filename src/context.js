@@ -25,7 +25,9 @@ module.exports = (extend = {}) => {
   config.connection = connect(extend.url, Object.assign({}, commonOpts, {
     reconnectTimeout: extend.reconnectTimeout
   }))
-  config.channel = openChannel(config.connection, commonOpts)
+  config.channel = openChannel(config.connection, Object.assign({}, commonOpts, {
+    prefetch: extend.prefetch
+  }))
   config.confirmChannel = openChannel(
     config.connection,
     Object.assign({ confirmationMode: true }, commonOpts)

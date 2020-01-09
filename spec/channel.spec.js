@@ -21,7 +21,7 @@ if (!config.logging) {
 }
 
 const start = (channelOptions = {}) => {
-  rxConnection = connect(config.amqpUri, DEFAULT_OPTIONS)
+  rxConnection = connect(config.url, DEFAULT_OPTIONS)
   rxChannel = openChannel(rxConnection, Object.assign(channelOptions, DEFAULT_OPTIONS))
   connected = rxConnection.skip(1)
   channelOpened = rxChannel.skip(1)
