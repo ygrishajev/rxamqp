@@ -26,6 +26,11 @@ module.exports = context => {
     return sendToQueue(payload, message)
   }
 
+  const ack = message => {
+    context.events.emit('event.ack', message)
+    return context.channel.ack(message)
+  }
+
   const reject = (payload, message) => {
     context.events.emit('response.error.sent', { message, payload })
     context.channel.reject(message, false)
@@ -36,10 +41,12 @@ module.exports = context => {
   const createContext = message => ({
     message,
     channel: context.channel,
-    respond: (payload, options) => message.replyTo && respond({
-      data: payload,
-      status: (options && options.status) || 200
-    }, message, options),
+    respond: (payload, options) => (message.replyTo
+      ? respond({
+        data: payload,
+        status: (options && options.status) || 200
+      }, message, options)
+      : ack(message)),
     rejectAndRespond: (payload, status) => message.replyTo && reject({
       error: payload,
       status: status || payload.status || 500
@@ -48,10 +55,7 @@ module.exports = context => {
       data: payload,
       status: status || 200
     }, message, { ack: true }),
-    ack: () => {
-      context.events.emit('event.ack', message)
-      return context.channel.ack(message)
-    },
+    ack,
     reject: (requeue = false) => {
       context.events.emit('event.nack', message)
       return context.channel.reject(message, requeue)
