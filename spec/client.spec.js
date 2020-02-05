@@ -24,8 +24,6 @@ afterEach(() => client.shutdown())
 
 describe('Client', () => {
   test('#publish message payload is properly delivered subscriber', () => {
-    expect.assertions(1)
-
     return new Promise(resolve => {
       use((msg, ctx) => {
         ctx.ack().then(() => resolve(msg))

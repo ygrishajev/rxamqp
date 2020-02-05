@@ -55,7 +55,7 @@ module.exports = context => {
       data: payload,
       status: status || 200
     }, message, { ack: true }),
-    ack,
+    ack: () => ack(message),
     reject: (requeue = false) => {
       context.events.emit('event.nack', message)
       return context.channel.reject(message, requeue)
