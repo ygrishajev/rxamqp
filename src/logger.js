@@ -1,80 +1,22 @@
-const {
-  yellow,
-  green,
-  red,
-  blue
-} = require('chalk')
-
 const { createMeta } = require('./helpers')
 
-const format = (headParts, body) => `${headParts.join(' ')}${body ? ` | ${JSON.stringify(body)}` : ''}`
+// TODO: cover with units
 
-const getHandlerId = event => (event.handlerId && `by '${green(event.handlerId)}'`)
-
-const shortId = message => (message.shortId ? `<${message.shortId}>` : '')
-
-const formats = {
-  'event.published': event => format([
-    blue(`↑ EVENT${shortId(event)}`),
-    'published to',
-    `'${blue(event.routingKey || event.queue)}'`
-  ], event.message),
-  'event.received': event => format([
-    blue(`↓ EVENT${shortId(event)}`),
-    `'${blue(event.routingKey || event.queue)}'`,
-    event.publisher ? `received from '${blue(event.publisher)}'` : 'is received',
-    getHandlerId(event)
-  ].filter(value => value), event.payload),
-  'event.ack': event => format([
-    green(`✔ EVENT${shortId(event)}`),
-    `'${green(event.routingKey || event.queue)}'`,
-    event.publisher ? `received from '${green(event.publisher)}'` : '',
-    'is acknowledged',
-    getHandlerId(event)
-  ].filter(value => value)),
-  'event.nack': event => format([
-    red(`✕ EVENT${shortId(event)}`),
-    `'${red(event.routingKey || event.queue)}'`,
-    event.publisher ? `received from '${red(event.publisher)}'` : '',
-    'is rejected',
-    getHandlerId(event)
-  ].filter(value => value)),
-  'request.sent': request => format([
-    blue(`↑ REQUEST${shortId(request)}`),
-    `for '${blue(request.routingKey || request.queue)}'`,
-    request.appId ? `sent by '${blue(request.appId)}'` : 'is sent'
-  ], request.message),
-  'request.received': request => format([
-    blue(`↓ REQUEST${shortId(request)}`),
-    `for '${blue(request.routingKey || request.queue)}'`,
-    request.publisher ? `received from '${blue(request.publisher)}'` : 'is received'
-  ], request.payload),
-  'response.success.sent': ({ message, payload }) => format([
-    green(`↑ RESPONSE:SUCCESS${shortId(message)}`),
-    `is sent in reply to '${green(message.routingKey || message.queue)}'`,
-    message.publisher ? `from '${green(message.publisher)}'` : '',
-    `via '${green(message.replyTo)}'`
-  ], payload),
-  'response.error.sent': ({ message, payload }) => format([
-    red(`↑ RESPONSE:ERROR${shortId(message)}`),
-    `is sent in reply to '${red(message.routingKey || message.queue)}'`,
-    message.publisher ? `from '${red(message.publisher)}'` : '',
-    `via '${red(message.replyTo)}'`
-  ], payload),
-  'response.error.received': response => format([
-    red(`↓ RESPONSE:ERROR${shortId(response)}`),
-    `is received in reply to '${red(response.routingKey || response.queue)}'`,
-    response.publisher ? `from '${red(response.publisher)}'` : ''
-  ], response.payload),
-  'response.success.received': response => format([
-    green(`↓ RESPONSE:SUCCESS${shortId(response)}`),
-    `is received in reply to '${green(response.routingKey || response.queue)}'`,
-    response.publisher ? `from '${green(response.publisher)}'` : ''
-  ], response.payload),
-  'queue.configured': replyTo => `${yellow(`QUEUE ${replyTo}`)} is listening for ${yellow('replies')}`,
-  'requestQueue.configured': replyTo => `${yellow(`QUEUE ${replyTo}`)} is listening for ${yellow('requests')}`,
-  'requestQueue.deleted': queue => `${red(`QUEUE ${queue}`)} is deleted`
-}
+const EVENTS = [
+  'event.published',
+  'event.received',
+  'event.ack',
+  'event.nack',
+  'request.sent',
+  'request.received',
+  'response.success.sent',
+  'response.error.sent',
+  'response.error.received',
+  'response.success.received',
+  'queue.configured',
+  'request.queue.configured',
+  'request.queue.deleted'
+]
 
 const toLogger = (logger, prefix) => (message, data) => {
   logger.log(`${createMeta(prefix)} ${message}`)
@@ -89,9 +31,40 @@ module.exports = ctx => {
 
   const log = toLogger(ctx.logger, ctx.connectionId ? `AMQP:${ctx.connectionId}` : 'AMQP')
 
-  Object
-    .keys(formats)
-    .reduce((events, key) => events.on(key, event => log(formats[key](event))), ctx.events)
+  EVENTS.reduce((events, key) => events
+    .on(key, event => log(formatMessage(key, event))), ctx.events)
 
   return ctx
+}
+
+const maxEventLength = EVENTS
+  .reduce((max, event) => (max > event.length ? max : event.length), 0)
+
+function formatMessage(key, event) {
+  const pretty = key.replace(/\./g, '_').toUpperCase()
+  let log = [
+    pretty,
+    pretty.length < maxEventLength && new Array(maxEventLength - pretty.length).join(' ')
+  ]
+
+  if (pretty === 'QUEUE_CONFIGURED') {
+    log = log.concat([
+      event && `queue=${event}`
+    ])
+  } else {
+    const isOut = pretty.includes('_SENT')
+    log = log.concat([
+      event.id && `correlation_id=${event.id}`,
+      event.requestId && `request_id=${event.requestId}`,
+      event.appId && `app_id=${event.appId}`,
+      !isOut && event.routingKey && `routing_key=${event.routingKey}`,
+      isOut && event.replyTo && `replyTo=${event.replyTo}`,
+      !isOut && event.payload && `payload=${JSON.stringify(event.payload)}`,
+      isOut && event.response && `payload=${JSON.stringify(event.response)}`
+    ])
+  }
+
+  return log
+    .filter(value => !!value)
+    .join(' ')
 }

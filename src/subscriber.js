@@ -17,7 +17,7 @@ module.exports = context => {
     }, REPLY_OPTIONS))
 
   const respond = (payload, message, options = { ack: true }) => {
-    context.events.emit('response.success.sent', { message, payload })
+    context.events.emit('response.success.sent', message.setResponse(payload))
 
     if (options.ack) {
       context.channel.ack(message)
@@ -32,7 +32,7 @@ module.exports = context => {
   }
 
   const reject = (payload, message) => {
-    context.events.emit('response.error.sent', { message, payload })
+    context.events.emit('response.error.sent', message.setResponse(payload))
     context.channel.reject(message, false)
 
     return sendToQueue(payload, message)

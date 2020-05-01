@@ -26,6 +26,17 @@ class OutgoingMessage {
     this.options.replyTo = value
   }
 
+  get payload() {
+    return this.message
+  }
+
+  get requestId() {
+    const headers = this.options.headers || {}
+    const requestId = Object.keys(headers)
+      .find(key => key.toLowerCase() === 'x-request-id')
+    return headers[requestId]
+  }
+
   constructor(payload) {
     Object.assign(this, payload)
     this.options = Object.assign({}, { correlationId: uuid() }, payload.options)

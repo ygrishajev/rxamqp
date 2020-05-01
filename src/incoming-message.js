@@ -11,6 +11,10 @@ class IncomingMessage {
     return this.properties.appId
   }
 
+  get appId() {
+    return this.properties.appId
+  }
+
   get hasError() {
     return this.payload && !!this.payload.error
   }
@@ -27,6 +31,13 @@ class IncomingMessage {
     return this.properties.replyTo
   }
 
+  get requestId() {
+    const headers = this.properties.headers || {}
+    const requestId = Object.keys(headers)
+      .find(key => key.toLowerCase() === 'x-request-id')
+    return headers[requestId]
+  }
+
   constructor(message) {
     Object.assign(this, message)
   }
@@ -39,6 +50,11 @@ class IncomingMessage {
     }
 
     return this.payload
+  }
+
+  setResponse(payload) {
+    this.response = payload
+    return this
   }
 }
 
