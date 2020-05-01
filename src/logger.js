@@ -37,17 +37,11 @@ module.exports = ctx => {
   return ctx
 }
 
-const maxEventLength = EVENTS
-  .reduce((max, event) => (max > event.length ? max : event.length), 0)
-
 function formatMessage(key, event) {
   const pretty = key.replace(/\./g, '_').toUpperCase()
-  let log = [
-    pretty,
-    pretty.length < maxEventLength && new Array(maxEventLength - pretty.length).join(' ')
-  ]
+  let log = [pretty]
 
-  if (pretty === 'QUEUE_CONFIGURED') {
+  if (pretty.includes('QUEUE')) {
     log = log.concat([
       event && `queue=${event}`
     ])

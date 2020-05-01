@@ -145,7 +145,7 @@ module.exports = context => {
       .then(() => routingKeys.length && Promise.all(routingKeys
         .map(routingKey => channel
           .bindQueue(queue, params.exchange, routingKey))))
-      .then(() => context.events.emit('requestQueue.configured', queue))
+      .then(() => context.events.emit('request.queue.configured', queue))
       .then(() => channel.consume(queue, consume, params.consumer))
 
     uses[queue] = doUse
@@ -185,7 +185,7 @@ module.exports = context => {
       .toPromise()
       .then(channel => channel.deleteQueue(queue))
       .then(() => { delete uses[queue] })
-      .then(() => context.events.emit('requestQueue.deleted', queue))
+      .then(() => context.events.emit('request.queue.deleted', queue))
   }
 
   return {
