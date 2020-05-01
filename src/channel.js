@@ -5,7 +5,16 @@ require('rxjs/add/operator/filter')
 const { withDefault, toPromise, createMeta } = require('./helpers')
 
 const promisifyChannelMethod = (rxChannel, method) => (...args) => toPromise(rxChannel)
-  .then(channel => channel[method](...args))
+  .then(channel => {
+    if (
+      ['ack', 'reject'].includes(method)
+        && !channel.consumers[args[0].consumerTag]
+    ) {
+      return Promise.reject(new Error(`cannot ${method} message via closed channel`))
+    }
+
+    return channel[method](...args)
+  })
 
 const openChannel = (connectionStore, options) => {
   const store = new BehaviorSubject(null)

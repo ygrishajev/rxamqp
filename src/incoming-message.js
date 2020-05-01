@@ -31,6 +31,10 @@ class IncomingMessage {
     return this.properties.replyTo
   }
 
+  get consumerTag() {
+    return this.fields.consumerTag
+  }
+
   get requestId() {
     const headers = this.properties.headers || {}
     const requestId = Object.keys(headers)
