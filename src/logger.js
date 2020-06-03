@@ -46,15 +46,14 @@ function formatMessage(key, event) {
       event && `queue=${event}`
     ])
   } else {
-    const isOut = pretty.includes('_SENT')
     log = log.concat([
       event.id && `correlation_id=${event.id}`,
       event.requestId && `request_id=${event.requestId}`,
       event.appId && `app_id=${event.appId}`,
-      !isOut && event.routingKey && `routing_key=${event.routingKey}`,
-      isOut && event.replyTo && `replyTo=${event.replyTo}`,
-      !isOut && event.payload && `payload=${JSON.stringify(event.payload)}`,
-      isOut && event.response && `payload=${JSON.stringify(event.response)}`
+      event.routingKey && `routing_key=${event.routingKey}`,
+      event.replyTo && `replyTo=${event.replyTo}`,
+      event.payload && `payload=${JSON.stringify(event.payload)}`,
+      event.response && `payload=${JSON.stringify(event.response)}`
     ])
   }
 

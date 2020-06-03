@@ -26,6 +26,10 @@ class OutgoingMessage {
     this.options.replyTo = value
   }
 
+  get replyTo() {
+    return this.options.replyTo
+  }
+
   get payload() {
     return this.message
   }
