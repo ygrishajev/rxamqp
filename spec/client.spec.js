@@ -30,7 +30,7 @@ describe('Client', () => {
       })
         .listen()
 
-      client.events.on('requestQueue.configured', () => client.publish(EXCHANGE, ROUTING_KEY, MESSAGE))
+      client.events.on('request.queue.configured', () => client.publish(EXCHANGE, ROUTING_KEY, MESSAGE))
     })
       .then(message => expect(message).toMatchObject(MESSAGE))
   })
@@ -53,7 +53,7 @@ describe('Client', () => {
       })
         .listen()
 
-      client.events.on('requestQueue.configured', () => {
+      client.events.on('request.queue.configured', () => {
         client.publish(EXCHANGE, ROUTING_KEY_SECONDARY, MESSAGE_SECONDARY)
         client.publish(EXCHANGE, ROUTING_KEY, MESSAGE)
       })
