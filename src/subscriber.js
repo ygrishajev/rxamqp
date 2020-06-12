@@ -161,8 +161,6 @@ module.exports = context => {
   const resubscribe = new Subject()
 
   const listen = () => {
-    isListening = true
-
     context.channel
       .takeUntil(shutdown)
       .subscribe(channel => {
