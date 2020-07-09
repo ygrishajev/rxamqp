@@ -6,7 +6,6 @@ const { IncomingMessage } = require('./incoming-message')
 const { OutgoingMessage } = require('./outgoing-message')
 
 const REPLY_QUEUE_OPTIONS = {
-  exclusive: true,
   autoDelete: true,
   durable: false
 }
