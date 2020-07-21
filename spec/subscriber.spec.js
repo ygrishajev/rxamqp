@@ -19,23 +19,22 @@ const usageOptions = {
 }
 const use = (...middlewares) => client.use(usageOptions, ...middlewares)
 
-beforeEach(() => { client = createClient(Object.assign({}, { config, logger: false })) })
+beforeEach(() => { client = createClient(Object.assign({}, config, { logger: false })) })
 afterEach(() => client.shutdown())
 
 describe('Client', () => {
-  test('#publish message payload is properly delivered subscriber', () => {
-    return new Promise(resolve => {
-      use((msg, ctx) => {
-        ctx.ack().then(() => resolve(msg))
-      })
-        .listen()
-
-      client.events.on('request.queue.configured', () => client.publish(EXCHANGE, ROUTING_KEY, MESSAGE))
+  it('#publish message payload is properly delivered subscriber', () => new Promise(resolve => {
+    use((msg, ctx) => {
+      ctx.ack()
+      resolve(msg)
     })
-      .then(message => expect(message).toMatchObject(MESSAGE))
-  })
+      .listen()
 
-  test('#publish message payload is properly delivered subscriber with multiple bindings', () => {
+    client.events.on('request.queue.configured', () => client.publish(EXCHANGE, ROUTING_KEY, MESSAGE))
+  })
+    .then(message => expect(message).toMatchObject(MESSAGE)))
+
+  it('#publish message payload is properly delivered subscriber with multiple bindings', () => {
     expect.assertions(1)
 
     return new Promise(resolve => {
@@ -45,11 +44,10 @@ describe('Client', () => {
         routingKey: [ROUTING_KEY, ROUTING_KEY_SECONDARY]
       }), (payload, { message, ack }) => {
         messages[message.routingKey] = payload
-        ack().then(() => {
-          if (Object.keys(messages).length === 2) {
-            resolve(messages)
-          }
-        })
+        ack()
+        if (Object.keys(messages).length === 2) {
+          resolve(messages)
+        }
       })
         .listen()
 
@@ -64,7 +62,7 @@ describe('Client', () => {
       }))
   })
 
-  test('#request receives a proper success response from subscriber', () => {
+  it('#request receives a proper success response from subscriber', () => {
     expect.assertions(1)
 
     use((msg, ctx) => ctx.respond(MESSAGE))
@@ -74,7 +72,7 @@ describe('Client', () => {
       .then(message => expect(message).toMatchObject({ data: MESSAGE }))
   })
 
-  test('#request throws a proper rejection error from subscriber', () => {
+  it('#request throws a proper rejection error from subscriber', () => {
     expect.assertions(1)
 
     use((msg, ctx) => ctx.rejectAndRespond(ERROR))
@@ -84,7 +82,7 @@ describe('Client', () => {
       .catch(error => expect(error).toMatchObject({ error: ERROR }))
   })
 
-  test('#request receives a proper success response from subscriber\'s secondary middleware', () => {
+  it('#request receives a proper success response from subscriber\'s secondary middleware', () => {
     expect.assertions(1)
 
     use(
@@ -97,7 +95,7 @@ describe('Client', () => {
       .then(message => expect(message).toMatchObject({ data: MESSAGE }))
   })
 
-  test('#request receives a proper success response from subscriber\'s global middleware', () => {
+  it('#request receives a proper success response from subscriber\'s global middleware', () => {
     expect.assertions(1)
 
     use((msg, ctx, next) => next())
@@ -108,7 +106,7 @@ describe('Client', () => {
       .then(message => expect(message).toMatchObject({ data: MESSAGE }))
   })
 
-  test('#request throws a proper error from subscriber\'s sync global error handler', () => {
+  it('#request throws a proper error from subscriber\'s sync global error handler', () => {
     expect.assertions(1)
 
     use(() => { throw new Error(ERROR.message) })
@@ -120,7 +118,7 @@ describe('Client', () => {
       .catch(error => expect(error).toMatchObject({ error: ERROR }))
   })
 
-  test('#request throws a proper error from subscriber\'s async global error handler', () => {
+  it('#request throws a proper error from subscriber\'s async global error handler', () => {
     use((msg, ctx, next) => setTimeout(() => next(new Error(ERROR.message)), 0))
       // eslint-disable-next-line no-unused-vars
       .use((error, msg, ctx, next) => ctx.rejectAndRespond({ message: error.message }))

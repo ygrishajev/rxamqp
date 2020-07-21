@@ -1,20 +1,18 @@
+const { promisify } = require('util')
 const { IllegalOperationError } = require('amqplib/lib/error')
+const { ConfirmChannel } = require('amqplib/lib/channel_model')
 const { BehaviorSubject } = require('rxjs/BehaviorSubject')
 require('rxjs/add/operator/filter')
 
 const { withDefault, toPromise, createMeta } = require('./helpers')
 
-const promisifyChannelMethod = (rxChannel, method) => (...args) => toPromise(rxChannel)
-  .then(channel => {
-    if (
-      ['ack', 'reject'].includes(method)
-        && !channel.consumers[args[0].consumerTag]
-    ) {
-      return Promise.reject(new Error(`cannot ${method} message via closed channel`))
-    }
+const callChannelMethod = (rxChannel, method) => (...args) => toPromise(rxChannel)
+  .then(channel => channel[method](...args))
 
-    return channel[method](...args)
-  })
+const promisifyChannelMethod = (rxChannel, method) => (...args) => toPromise(rxChannel)
+  .then(channel => (channel instanceof ConfirmChannel
+    ? promisify(channel[method].bind(channel, ...args))()
+    : channel[method](...args)))
 
 const openChannel = (connectionStore, options) => {
   const store = new BehaviorSubject(null)
@@ -24,12 +22,10 @@ const openChannel = (connectionStore, options) => {
     .subscribe(connection => startRxChannel(connection, store, options))
 
   Object.assign(store, {
-    ack: promisifyChannelMethod(store, 'ack'),
-    reject: promisifyChannelMethod(store, 'reject'),
     publish: promisifyChannelMethod(store, 'publish'),
     sendToQueue: promisifyChannelMethod(store, 'sendToQueue'),
-    assertQueue: promisifyChannelMethod(store, 'assertQueue'),
-    consume: promisifyChannelMethod(store, 'consume')
+    assertQueue: callChannelMethod(store, 'assertQueue'),
+    consume: callChannelMethod(store, 'consume')
   })
 
   return store

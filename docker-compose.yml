@@ -19,8 +19,9 @@ services:
       - docker-compose.env
     environment:
       YG_NPM_TOKEN: ${YG_NPM_TOKEN}
+      AMQP_URI: amqp://guest:guest@rabbitmq
   rabbitmq:
-    image: registry.gitlab.com/trysimply/cloud/rabbitmq-test
+    image: ygrishajev/rabbitmq-dev
     restart: on-failure
     ports:
       - "5672:5672"

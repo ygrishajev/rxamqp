@@ -1,4 +1,5 @@
 const flow = require('lodash.flow')
+require('util.promisify').shim()
 
 const createPublisher = require('./publisher')
 const createRequester = require('./requester')

@@ -10,101 +10,46 @@ const REPLY_OPTIONS = {
 }
 
 module.exports = context => {
-  const sendToQueue = (payload, message) => context.channel
-    .sendToQueue(message.replyTo, toBuffer(payload), Object.assign({
-      appId: context.appId,
-      correlationId: message.id
-    }, REPLY_OPTIONS))
+  const shutdown = new Subject()
+  const resubscribe = new Subject()
 
-  const respond = (payload, message, options = { ack: true }) => {
-    context.events.emit('response.success.sent', message.setResponse(payload))
-
-    if (options.ack) {
-      context.channel.ack(message)
-    }
-
-    return sendToQueue(payload, message)
-  }
-
-  const ack = message => {
-    context.events.emit('event.ack', message)
-    return context.channel.ack(message)
-  }
-
-  const reject = (payload, message) => {
-    context.events.emit('response.error.sent', message.setResponse(payload))
-    context.channel.reject(message, false)
-
-    return sendToQueue(payload, message)
-  }
-
-  const createContext = message => ({
-    message,
-    channel: context.channel,
-    respond: (payload, options) => (message.replyTo
-      ? respond({
-        data: payload,
-        status: (options && options.status) || 200
-      }, message, options)
-      : ack(message)),
-    rejectAndRespond: (payload, status) => message.replyTo && reject({
-      error: payload,
-      status: status || payload.status || 500
-    }, message),
-    ackAndRespond: (payload, status) => message.replyTo && respond({
-      data: payload,
-      status: status || 200
-    }, message, { ack: true }),
-    ack: () => ack(message),
-    reject: (requeue = false) => {
-      context.events.emit('event.nack', message)
-      return context.channel.reject(message, requeue)
-    }
-  })
-
-  const prepareOrReject = (message, handlerId) => {
-    const incoming = new IncomingMessage(Object.assign(message, { handlerId }))
-    const emit = () => context.events.emit(`${incoming.replyTo ? 'request' : 'event'}.received`, incoming)
-
-    try {
-      incoming.parse()
-      emit()
-    } catch (error) {
-      emit()
-      return reject({ error }, incoming)
-    }
-
-    return incoming
-  }
-
-  const uses = {}
-
-  const defaultErrorHandler = error => {
-    if (error) {
-      console.warn('Error: unhandled error passed to \'next\'') // eslint-disable-line no-console
-      console.warn(error) // eslint-disable-line no-console
+  const exports = {
+    use,
+    listen,
+    resubscribe,
+    deleteQueue,
+    shutdown: () => {
+      shutdown.next(true)
+      shutdown.complete()
     }
   }
-  let errorHandler = error => defaultErrorHandler(error)
-  const common = []
+
   let isListening = false
+  const uses = {}
+  const common = []
+  let errorHandler = error => defaultErrorHandler(error)
 
-  const wrap = middleware => (...args) => {
-    try {
-      return middleware(...args)
-    } catch (error) {
-      const [payload, ctx] = args
-      return errorHandler(error, payload, ctx, defaultErrorHandler)
-    }
+  function listen() {
+    return context.channel
+      .takeUntil(shutdown)
+      .subscribe(subscribeToChannel)
   }
 
-  const toQueueName = params => params.queue || [context.appId, params.handlerId, castArray(params.routingKey).join('.')]
-    .filter(value => value)
-    .join('.')
+  function subscribeToChannel(channel) {
+    if (channel && typeof use === 'function' && !isListening) {
+      Promise.all(Object.keys(uses).map(key => uses[key](channel)))
+        .then(() => resubscribe.next())
+      isListening = true
+    }
+
+    if (!channel) {
+      isListening = false
+    }
+  }
 
   // TODO: implement global middlewares
   // TODO: ensure proper handling of multiple message ack error to avoid reconnection
-  const use = (...args) => {
+  function use(...args) {
     if (typeof args[0] === 'function') {
       args.forEach(middleware => {
         if (middleware.length === 4) {
@@ -118,10 +63,44 @@ module.exports = context => {
 
     const [params, ...middlewares] = args
 
-    const consume = message => {
+    const routingKeys = castArray(params.routingKey)
+    const queue = toQueueName(params)
+
+    const doUse = channel => channel.assertQueue(queue, params.queueOptions)
+      .then(() => routingKeys.length && Promise.all(routingKeys
+        .map(routingKey => channel
+          .bindQueue(queue, params.exchange, routingKey))))
+      .then(() => context.events.emit('request.queue.configured', queue))
+      .then(() => channel.consume(queue, toConsumer(params, middlewares, channel), params.consumer))
+
+    uses[queue] = doUse
+
+    if (isListening) {
+      context.channel
+        .first()
+        .subscribe(doUse)
+    }
+  }
+
+  function toQueueName(params) {
+    return params.queue || [context.appId, params.handlerId, castArray(params.routingKey).join('.')]
+      .filter(value => value)
+      .join('.')
+  }
+
+  function defaultErrorHandler(error) {
+    if (error) {
+      console.warn('Error: unhandled error passed to \'next\'') // eslint-disable-line no-console
+      console.warn(error) // eslint-disable-line no-console
+    }
+  }
+
+  function toConsumer(params, middlewares, channel) {
+    return message => {
       if (!message) { return null }
 
-      const handlerContext = createContext(prepareOrReject(message, params.handlerId))
+      const incomingMessage = prepareOrReject(message, params.handlerId, channel)
+      const handlerContext = createContext(incomingMessage, channel)
       const handleError = error => errorHandler(
         error,
         handlerContext.message.payload,
@@ -137,46 +116,95 @@ module.exports = context => {
 
       return pipeline()
     }
+  }
 
-    const routingKeys = castArray(params.routingKey)
-    const queue = toQueueName(params)
+  function prepareOrReject(message, handlerId, channel) {
+    const incoming = new IncomingMessage(Object.assign(message, { handlerId }))
+    const emit = () => context.events.emit(`${incoming.replyTo ? 'request' : 'event'}.received`, incoming)
 
-    const doUse = channel => channel.assertQueue(queue, params.queueOptions)
-      .then(() => routingKeys.length && Promise.all(routingKeys
-        .map(routingKey => channel
-          .bindQueue(queue, params.exchange, routingKey))))
-      .then(() => context.events.emit('request.queue.configured', queue))
-      .then(() => channel.consume(queue, consume, params.consumer))
+    try {
+      incoming.parse()
+      emit()
+    } catch (error) {
+      emit()
+      return toChannelCtxBase(channel).reject(channel)({ error }, false, channel)
+    }
 
-    uses[queue] = doUse
+    return incoming
+  }
 
-    if (isListening) {
-      context.channel
-        .first()
-        .subscribe(doUse)
+  function createContext(message, channel) {
+    const { respond, reject, ack } = toChannelCtxBase(channel)
+
+    return {
+      message,
+      channel: context.channel,
+      respond: (payload, options) => (message.replyTo
+        ? respond({
+          data: payload,
+          status: (options && options.status) || 200
+        }, message, options)
+        : ack(message)),
+      rejectAndRespond: (payload, status) => message.replyTo && reject({
+        error: payload,
+        status: status || payload.status || 500
+      }, message),
+      ackAndRespond: (payload, status) => message.replyTo && respond({
+        data: payload,
+        status: status || 200
+      }, message, { ack: true }),
+      ack: () => ack(message),
+      reject: (requeue = false) => {
+        context.events.emit('event.nack', message)
+        return Promise.resolve(channel.reject(message, requeue))
+      }
     }
   }
 
-  const shutdown = new Subject()
-  const resubscribe = new Subject()
+  function toChannelCtxBase(channel) {
+    return {
+      respond: (payload, message, options = { ack: true }) => {
+        context.events.emit('response.success.sent', message.setResponse(payload))
 
-  const listen = () => {
-    context.channel
-      .takeUntil(shutdown)
-      .subscribe(channel => {
-        if (channel && typeof use === 'function' && !isListening) {
-          Promise.all(Object.keys(uses).map(key => uses[key](channel)))
-            .then(() => resubscribe.next())
-          isListening = true
+        if (options.ack) {
+          channel.ack(message)
         }
 
-        if (!channel) {
-          isListening = false
-        }
-      })
+        return sendToQueue(payload, message)
+      },
+      reject: (payload, message) => {
+        context.events.emit('response.error.sent', message.setResponse(payload))
+        channel.reject(message, false)
+
+        return sendToQueue(payload, message)
+      },
+      ack: message => {
+        context.events.emit('event.ack', message)
+        return Promise.resolve(channel.ack(message))
+      }
+    }
   }
 
-  const deleteQueue = params => {
+  function sendToQueue(payload, message) {
+    return context.confirmChannel
+      .sendToQueue(message.replyTo, toBuffer(payload), Object.assign({
+        appId: context.appId,
+        correlationId: message.id
+      }, REPLY_OPTIONS))
+  }
+
+  function wrap(middleware) {
+    return (...args) => {
+      try {
+        return middleware(...args)
+      } catch (error) {
+        const [payload, ctx] = args
+        return errorHandler(error, payload, ctx, defaultErrorHandler)
+      }
+    }
+  }
+
+  function deleteQueue(params) {
     const queue = toQueueName(params)
     return context.channel
       .first()
@@ -186,14 +214,5 @@ module.exports = context => {
       .then(() => context.events.emit('request.queue.deleted', queue))
   }
 
-  return {
-    use,
-    listen,
-    resubscribe,
-    deleteQueue,
-    shutdown: () => {
-      shutdown.next(true)
-      shutdown.complete()
-    }
-  }
+  return exports
 }

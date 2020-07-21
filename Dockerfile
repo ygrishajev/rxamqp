@@ -1,4 +1,4 @@
-FROM node:10-alpine
+FROM node:10
 
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
@@ -13,3 +13,4 @@ COPY ./src ./src
 ARG YG_NPM_TOKEN
 
 RUN npm install
+RUN npm install jest -g
