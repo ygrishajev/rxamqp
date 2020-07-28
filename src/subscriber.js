@@ -47,7 +47,7 @@ module.exports = context => {
     }
   }
 
-  // TODO: implement global middlewares
+  // TODO: implement global afterwares
   // TODO: ensure proper handling of multiple message ack error to avoid reconnection
   function use(...args) {
     if (typeof args[0] === 'function') {
@@ -107,7 +107,7 @@ module.exports = context => {
         handlerContext,
         defaultErrorHandler
       )
-      const pipeline = middlewares.concat(common).reduceRight(
+      const pipeline = common.concat(middlewares).reduceRight(
         (next, current) => error => (error
           ? handleError(error)
           : wrap(current)(handlerContext.message.payload, handlerContext, next)),
