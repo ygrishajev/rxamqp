@@ -107,3 +107,4 @@ client.request('amq.topic', 'foo.bar.error.async', { bar: 'bar' })
 ## Roadmap
 * Add primary global middlwares that are executed before all subscribers' local ones
 * Improve documentation
+* Migrate to TypeScript
